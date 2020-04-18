@@ -1,0 +1,383 @@
+<html>
+<head>
+<title>JavaScript Chess Engine</title>
+<script type="text/javascript" src="engine2.js"></script>
+<script type="text/javascript" src="init.js"></script>
+</head>
+<body onload="SetBoard()";>
+<table>
+<tr><td>
+<table border=1><tr><td>
+<table align="center" id="tblMain" border="0" style="cursor: pointer;" cellspacing=0 cellpadding=0>
+<tr><td id=156><img id=56></td><td id=157><img id=57></td><td id=158><img id=58></td><td id=159><img id=59></td><td id=160><img id=60></td><td id=161><img id=61></td><td id=162><img id=62></td><td id=163><img id=63></td></tr>
+<tr><td id=148><img id=48></td><td id=149><img id=49></td><td id=150><img id=50></td><td id=151><img id=51></td><td id=152><img id=52></td><td id=153><img id=53></td><td id=154><img id=54></td><td id=155><img id=55></td></tr>
+<tr><td id=140><img id=40></td><td id=141><img id=41></td><td id=142><img id=42></td><td id=143><img id=43></td><td id=144><img id=44></td><td id=145><img id=45></td><td id=146><img id=46></td><td id=147><img id=47></td></tr>
+<tr><td id=132><img id=32></td><td id=133><img id=33></td><td id=134><img id=34></td><td id=135><img id=35></td><td id=136><img id=36></td><td id=137><img id=37></td><td id=138><img id=38></td><td id=139><img id=39></td></tr>
+<tr><td id=124><img id=24></td><td id=125><img id=25></td><td id=126><img id=26></td><td id=127><img id=27></td><td id=128><img id=28></td><td id=129><img id=29></td><td id=130><img id=30></td><td id=131><img id=31></td></tr>
+<tr><td id=116><img id=16></td><td id=117><img id=17></td><td id=118><img id=18></td><td id=119><img id=19></td><td id=120><img id=20></td><td id=121><img id=21></td><td id=122><img id=22></td><td id=123><img id=23></td></tr>
+<tr><td id=108><img id=8></td><td id=109><img id=9></td><td id=110><img id=10></td><td id=111><img id=11></td><td id=112><img id=12></td><td id=113><img id=13></td><td id=114><img id=14></td><td id=115><img id=15></td></tr>        
+<tr><td id=100><img id=0></td><td id=101><img id=1></td><td id=102><img id=2></td><td id=103><img id=3></td><td id=104><img id=4></td><td id=105><img id=5></td><td id=106><img id=6></td><td id=107><img id=7></td></tr>
+</table>
+</td></tr>
+</table>
+</td>
+<td>
+<br />
+<form>
+<input type="button" id="new" name="newgame" value="New Game" onclick="NewGame();">
+<br>
+<label for "fen">Paste fen position
+<input type="text" id="fen" name="fen" value="">
+<br>
+<input type="button" id="load" name="load" value="Load Position" onclick="LoadDiagram();">
+<br>
+<table border=1>
+<tr>
+<td id=level>1</td>
+</tr>
+</table>
+<input type="button" id="addlevel" name="addlevel" value="+" onclick="AddLevel();">
+<label for "level">Select Level
+<input type="button" id="sublevel" name="sublevel" value="-" onclick="SubLevel();">
+<br>
+<input type="button" id="white" name="white" value="White" onclick="SetPlayer(0);">
+<input type="button" id="black" name="black" value="Black" onclick="SetPlayer(1);">
+<table border=1>
+<tr>
+<td id=players></td>
+</tr>
+</table>
+<input type="button" id="go" name="go" value="Go" onclick="Go();">
+<br>
+<input type="button" id="flipbb" name="flipb" value="Flip Board" onclick="FlipBoard();">
+<br>
+<input type="button" id="takeback" name="takeback" value="Take Back" onclick="TakeBackMove();">
+<br>
+<label for "info">Info
+<table border=1 width=250 height=50>
+<tr>
+<td id=info></td>
+</tr>
+</table>
+</td>
+</form>
+</td>
+<br>
+</tr>
+</table>
+<table border=1 width=320 height=50>
+<tr>
+<td id=box></td>
+</tr>
+</table>
+<script language="javascript">
+var Letters = []; Letters.length =  8;
+var Numbers = []; Numbers.length =  8;
+var b =  [
+3,1,2,4,5,2,1,3,
+0,0,0,0,0,0,0,0,
+6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,
+0,0,0,0,0,0,0,0,
+3,1,2,4,5,2,1,3
+];
+var s=[
+1,0,1,0,1,0,1,0,
+0,1,0,1,0,1,0,1,
+1,0,1,0,1,0,1,0,
+0,1,0,1,0,1,0,1,
+1,0,1,0,1,0,1,0,
+0,1,0,1,0,1,0,1,
+1,0,1,0,1,0,1,0,
+0,1,0,1,0,1,0,1
+];
+var c = [
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,
+1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1
+];
+var player = [0,0];
+var player_type = ["human","computer"];
+var WhiteImg =  new Create2DArray(20,6);
+var BlackImg =  new Create2DArray(20,6);
+
+var start, dest;
+var root_start = 0,root_dest = 0,root_score = 0;
+var flipboard=0;
+var E1=4;
+var E8=60;
+var max_nodes=0;
+var max_depth;
+var Safari=1;
+start = -1;
+var side = 0;
+var first,second,line;
+var positions;
+
+DisplayPlayers();
+SetImages();
+
+if(Safari==1)
+ startWorker();	
+ 
+function startWorker() 
+{
+  if (typeof(Worker) !== "undefined") 
+  {
+    if (typeof(w) == "undefined")
+      w = new Worker("engine2.js");
+    w.onmessage = function(event) 
+    {
+      line=event.data;
+      first=FirstPart(line);
+      second=SecondPart(line);
+      if(first=="add")
+         DisplayText(second);
+      if(first=="alert")
+         alert(second);
+      if(first=="cb")
+      {
+      	GetBoard(second);
+      	SetBoard();
+      	DisplayInfo(""); 
+      }
+      if(first=="side")
+      {
+        side=(second);
+        xside=side^1;  	
+      }
+       if(first=="info")
+        DisplayInfo(second); 	
+      }
+  } 
+  else 
+    alert("Sorry! No Web Worker support.");
+}
+
+function stopWorker() {
+  w.terminate();
+  w = undefined;
+}
+w.postMessage("set");
+
+function GetBoard(a)
+{
+for(var x=0;x<64;x++)
+  b[x]=Number(a.charAt(x));
+for(var x=64;x<128;x++)
+  c[x-64]=Number(a.charAt(x));
+}  
+
+var tbl = document.getElementById("tblMain");
+if (tbl != null) 
+{
+for (var i = 0; i < tbl.rows.length; i++) 
+{
+for (var j = 0; j < tbl.rows[i].cells.length; j++)
+tbl.rows[i].cells[j].onclick = function () { GetValue(this); };
+}
+}
+function SetBoard()
+{
+var x,y,a2;
+var folder ;
+folder = "pieces/"; 
+for(x=0;x<64;x++)
+{
+if(flipboard==0)
+y=x;
+else
+y=63-x;
+ if(c[y] == 0)
+   a2 = WhiteImg[b[y]][s[y]];
+else
+   a2 = BlackImg[b[y]][s[y]];
+document.getElementById(x).src=folder + a2;
+}
+}
+function SetPlayer(s)
+{
+player[s] = player[s]^1;
+DisplayPlayers();
+}
+function DisplayPlayers()
+{
+var a="White "+player_type[player[0]]+" Black "+player_type[player[1]];
+var x1=document.getElementById('players');	
+x1.innerHTML = a;
+}
+function FlipBoard()
+{
+flipboard=flipboard^1;
+SetBoard();
+}
+function NewGame()
+{
+w.postMessage("new");	
+w.postMessage("add="+"New Game");
+}
+function Go()
+{
+if(player[side]==1)
+{
+if(ResultCheck>0)
+  return;
+w.postMessage("depth="+max_depth);
+w.postMessage("think="+side);
+w.postMessage("info");
+positions=DisplayInfo();
+SetBoard();			
+}
+}
+
+function ResultCheck()
+{
+postMessage(" fifty "+fifty);
+if (fifty  >= 100)
+{
+postMessage("add = 1/2-1/2 {Draw by fifty move rule}\n");
+fifty =  0;
+games++;
+draws++;
+NewGame();
+return 1;
+}	
+return 0;	
+}
+
+function DisplayText(a)
+{
+var x1=document.getElementById('box');	
+x1.innerHTML = a;
+}
+function DisplayInfo(a)
+{
+var x1=document.getElementById('info');	
+x1.innerHTML = a;	
+}
+function GetValue(cell) 
+{
+var p = cell.id-100;
+if(flipboard==1)
+  p=63-p;
+if(start == -1)
+{
+if(b[p] == 6)
+{
+DisplayText("no piece on "+Algebraic(p));
+return 0;
+}    
+if(c[p] == 1-side)
+{
+DisplayText(" no wrong side "+Algebraic(p));
+return 0;
+}     
+if(c[p] == side)
+{
+DisplayText("start square "+ Algebraic(p));
+start = p;
+return 0;
+}
+}
+else
+{
+if(c[p] == side)
+{
+DisplayText("start square "+ Algebraic(p));
+start = p;
+return 0;
+}
+dest = p;
+w.postMessage("play="+start +"="+dest);
+ SetBoard();
+DisplayText(Algebraic(start) + Algebraic(dest));
+start = -1;
+if(player[xside]==0)
+  return 0;
+xside=side;side=side^1;
+Go();
+DisplayText(Algebraic(root_start) + Algebraic(root_dest)+" "+positions);//
+if(positions<2)
+{
+alert("pos");
+if(Attack(xside,Kingloc[side]))
+  DisplayText("Checkmate!");
+else
+  DisplayText("Stalemate!");
+return 0;
+}
+MakeMove(root_start,root_dest);
+ply=0;
+first_move[0] = 0;
+SetBoard();
+}
+}
+function TakeBackMove()
+{
+w.postMessage("takeback");
+}
+function GetSquareNumber(sq)
+{
+var file, rank, square;
+file =  sq.substring(0, 1);
+rank =  sq.substring(1, 2);
+square = file.charCodeAt(0) - 96 + (rank - 1) * 8;
+return square;
+}
+
+function AddLevel()
+{
+if(max_depth<32)
+  max_depth++;
+var x1=document.getElementById('level');	
+x1.innerHTML = max_depth;
+}
+
+function SubLevel()
+{
+if(max_depth>1)
+  max_depth--;
+var x1=document.getElementById('level');	
+x1.innerHTML = max_depth;
+}
+
+function FirstPart(a)
+{
+var a2 ="";
+if(a==undefined)return a2;
+for(var x=0;x<a.length;x++)
+{
+if(a.charAt(x)=="=") break;
+a2 += a.charAt(x);
+}
+return a2;
+}
+
+function SecondPart(a)
+{
+var a2 ="";
+if(a==undefined)return a2;
+var flag=0;
+for(var x=0;x<a.length;x++)
+{
+if(flag==1)
+a2 += a.charAt(x);
+if(a.charAt(x)=="=") flag =1;
+}
+return a2;
+}
+function LoadDiagram()
+{
+var a = document.getElementById("fen").value;
+w.postMessage("diag="+a);	
+}
+    </script>
+</body>
+</html>
