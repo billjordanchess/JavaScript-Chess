@@ -2088,14 +2088,6 @@ postMessage("alert= "+s);
 
 function LoadDiagram(ts)
 {
-ts="8/p3q1kp/1p2Pnp1/3pQ3/2pP4/1nP3N1/1B4PP/6K1 w - - 0 1";
-ts="1r1q2k1/6p1/1r1pppP1/8/8/8/PPP5/1KQR3R w - - 0 1";
-ts="1r1q2k1/6p1/1r1pppP1/8/8/8/PPP5/1KQ4R w - - 0 1";
-//ts="1r1q3k/6p1/1r1pppP1/8/8/8/PPP5/1KQ5 w - - 0 1";
-//ts="rn1qkbnr/ppp2pp1/3p3p/4p3/2B1P1b1/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1";
-//ts="1r1q1k2/6pQ/1r1pppP1/8/8/8/PPP5/1K6 w - - 0 1";
-//ts="2b1k3/8/8/8/8/8/8/2B1K3 w - - 0 1";
-ts="7k/4Q3/5K2/8/8/8/8/8 w - - 0 1";
 var x,y,n=0;
 
 for(x=0;x<64;x++)
