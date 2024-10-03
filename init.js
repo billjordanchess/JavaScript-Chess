@@ -1,38 +1,33 @@
-function Create2DArray(r,c1)
-{
-var x =  []; x.length =  r;
-for (var i =  0; i <  r; i++) 
-{
-x[i] =  []; x[i].length =  c1;
-   for (var j =  0; j <  c1; j++) 
-   {
-     x[i][j] =  0;
-   }
-}
-return x;
-}
-function init_board()
-{
-	var i;
-	for (i = 0; i < 64; ++i) 
-	{
-		c[i] = init_color[i];
-		b[i] = init_piece[i];
-	}
-	side = 0;
-	xside = 1;
-	fifty = 0;
-	ply = 0;
-	hply = 0;
-	first_move[0] = 0;
-	Kingloc[0] = 4;
-	Kingloc[1] = 60;
-	SetCastle(1);
-	SetBoard();
+function Create2DArray(r, c1) {
+    var x = []; x.length = r;
+    for (var i = 0; i < r; i++) {
+        x[i] = []; x[i].length = c1;
+        for (var j = 0; j < c1; j++) {
+            x[i][j] = 0;
+        }
+    }
+    return x;
 }
 
-    function SetImages()
-    {
+function init_board() {
+    var i;
+    for (i = 0; i < 64; ++i) {
+        c[i] = init_color[i];
+        b[i] = init_piece[i];
+    }
+    side = 0;
+    xside = 1;
+    fifty = 0;
+    ply = 0;
+    hply = 0;
+    first_move[0] = 0;
+    Kingloc[0] = 4;
+    Kingloc[1] = 60;
+    SetCastle(1);
+    SetBoard();
+}
+
+function SetImages() {
     Letters[0] = "blank.jpg";
     Letters[1] = "fa.jpg";
     Letters[2] = "fb.jpg";
@@ -104,32 +99,32 @@ function init_board()
     BlackImg[8][0] = "bx.jpg";
     BlackImg[7][1] = "bx2.jpg";
     BlackImg[8][1] = "bx2.jpg";
-    }
-    var flip_board = [
- 56,  57,  58,  59,  60,  61,  62,  63,
- 48,  49,  50,  51,  52,  53,  54,  55,
- 40,  41,  42,  43,  44,  45,  46,  47,
- 32,  33,  34,  35,  36,  37,  38,  39,
- 24,  25,  26,  27,  28,  29,  30,  31,
- 16,  17,  18,  19,  20,  21,  22,  23,
-  8,   9,  10,  11,  12,  13,  14,  15,
-  0,   1,   2,   3,   4,   5,   6,   7
-];
-function Algebraic(x)
-{
-var c1 = col[x];
-var r = row[x];
-var a = "";
-switch(c1)
-{
-	case 0: a="a"; break;
-	case 1: a="b"; break;
-	case 2: a="c"; break;
-	case 3: a="d"; break;
-	case 4: a="e"; break;
-	case 5: a="f"; break;
-	case 6: a="g"; break;
-	case 7: a="h"; break;
 }
-return a + (r+1);
+
+var flip_board = [
+    56, 57, 58, 59, 60, 61, 62, 63,
+    48, 49, 50, 51, 52, 53, 54, 55,
+    40, 41, 42, 43, 44, 45, 46, 47,
+    32, 33, 34, 35, 36, 37, 38, 39,
+    24, 25, 26, 27, 28, 29, 30, 31,
+    16, 17, 18, 19, 20, 21, 22, 23,
+    8, 9, 10, 11, 12, 13, 14, 15,
+    0, 1, 2, 3, 4, 5, 6, 7
+];
+
+function Algebraic(x) {
+    var c1 = col[x];
+    var r = row[x];
+    var a = "";
+    switch (c1) {
+        case 0: a = "a"; break;
+        case 1: a = "b"; break;
+        case 2: a = "c"; break;
+        case 3: a = "d"; break;
+        case 4: a = "e"; break;
+        case 5: a = "f"; break;
+        case 6: a = "g"; break;
+        case 7: a = "h"; break;
+    }
+    return a + (r + 1);
 }
