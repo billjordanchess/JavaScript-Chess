@@ -2,9 +2,8 @@
 <head>
     <title>JavaScript Chess Engine</title>
     <script type="text/javascript" src="engine2.js"></script>
-    <script type="text/javascript" src="init.js"></script>
 </head>
-<body onload="SetBoard()" ;>
+<body onload="SetBoard()">
     <table>
         <tr>
             <td>
@@ -28,11 +27,13 @@
             <td>
                 <br />
                 <form>
+                    JJJ Chess Engine V 1.1 11/10/24
                     <input type="button" id="new" name="newgame" value="New Game" onclick="NewGame();">
                     <br>
-                    <label for "fen">
+                    <label for="fen">
                         Paste fen position
-                        <input type="text" id="fen" name="fen" value="">
+                        <br>
+                        <input type="text" id="fen" name="fen" value="" size="60">
                         <br>
                         <input type="button" id="load" name="load" value="Load Position" onclick="LoadDiagram();">
                         <br>
@@ -61,7 +62,7 @@
                             <br>
                             <label for "info">
                                 Info
-                                <table border=1 width=250 height=50>
+                                <table border=1 width=400 height=50>
                                     <tr>
                                         <td id=info></td>
                                     </tr>
@@ -72,7 +73,7 @@
             <br>
         </tr>
     </table>
-    <table border=1 width=320 height=50>
+    <table border=1 width=680 height=50>
         <tr>
             <td id=box></td>
         </tr>
@@ -90,7 +91,7 @@
             0, 0, 0, 0, 0, 0, 0, 0,
             3, 1, 2, 4, 5, 2, 1, 3
         ];
-        var s = [
+        const SQUARE_COLOR = [
             1, 0, 1, 0, 1, 0, 1, 0,
             0, 1, 0, 1, 0, 1, 0, 1,
             1, 0, 1, 0, 1, 0, 1, 0,
@@ -100,7 +101,7 @@
             1, 0, 1, 0, 1, 0, 1, 0,
             0, 1, 0, 1, 0, 1, 0, 1
         ];
-        var c = [
+        var color = [
             0, 0, 0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0, 0, 0,
             6, 6, 6, 6, 6, 6, 6, 6,
@@ -110,7 +111,11 @@
             1, 1, 1, 1, 1, 1, 1, 1,
             1, 1, 1, 1, 1, 1, 1, 1
         ];
-        var player = [0, 0];
+
+        const HUMAN = 0;
+        const COMP = 1;
+
+        var player = [HUMAN, HUMAN];
         var player_type = ["human", "computer"];
         var WhiteImg = new Create2DArray(20, 6);
         var BlackImg = new Create2DArray(20, 6);
@@ -126,15 +131,14 @@
         start = -1;
         var side = 0;
         var first, second, line;
-        var positions;
+        var goflag = 0;
 
         DisplayPlayers();
         SetImages();
 
-        if (Safari == 1)
-            startWorker();
+        StartWorker();
 
-        function startWorker() {
+        function StartWorker() {
             if (typeof (Worker) !== "undefined") {
                 if (typeof (w) == "undefined")
                     w = new Worker("engine2.js");
@@ -157,6 +161,8 @@
                     }
                     if (first == "info")
                         DisplayInfo(second);
+                    if (first == "board")
+                        SetBoard();//
                 }
             }
             else
@@ -173,7 +179,7 @@
             for (var x = 0; x < 64; x++)
                 b[x] = Number(a.charAt(x));
             for (var x = 64; x < 128; x++)
-                c[x - 64] = Number(a.charAt(x));
+                color[x - 64] = Number(a.charAt(x));
         }
 
         var tbl = document.getElementById("tblMain");
@@ -192,10 +198,10 @@
                     y = x;
                 else
                     y = 63 - x;
-                if (c[y] == 0)
-                    a2 = WhiteImg[b[y]][s[y]];
+                if (color[y] == 0)
+                    a2 = WhiteImg[b[y]][SQUARE_COLOR[y]];
                 else
-                    a2 = BlackImg[b[y]][s[y]];
+                    a2 = BlackImg[b[y]][SQUARE_COLOR[y]];
                 document.getElementById(x).src = folder + a2;
             }
         }
@@ -217,21 +223,25 @@
             w.postMessage("add=" + "New Game");
         }
         function Go() {
-            if (player[side] == 1) {
-                if (ResultCheck > 0)
+            if (player[side] == COMP) {
+                if (ResultCheck > 0) {
+                    goflag = 0;
                     return;
+                }
+                if (goflag == 1) return;
                 w.postMessage("depth=" + max_depth);
                 w.postMessage("think=" + side);
                 w.postMessage("info");
-                positions = DisplayInfo();
                 SetBoard();
+                goflag = 1;
             }
+            goflag = 0;
         }
-
+        
         function ResultCheck() {
             postMessage(" fifty " + fifty);
             if (fifty >= 100) {
-                postMessage("add = 1/2-1/2 {Draw by fifty move rule}\n");
+                w.postMessage("add = 1/2-1/2 {Draw by fifty move rule}\n");
                 fifty = 0;
                 games++;
                 draws++;
@@ -254,22 +264,22 @@
             if (flipboard == 1)
                 p = 63 - p;
             if (start == -1) {
-                if (b[p] == 6) {
+                if (b[p] == EMPTY) {
                     DisplayText("no piece on " + Algebraic(p));
                     return 0;
                 }
-                if (c[p] == 1 - side) {
+                if (color[p] == 1 - side) {
                     DisplayText(" no wrong side " + Algebraic(p));
                     return 0;
                 }
-                if (c[p] == side) {
+                if (color[p] == side) {
                     DisplayText("start square " + Algebraic(p));
                     start = p;
                     return 0;
                 }
             }
             else {
-                if (c[p] == side) {
+                if (color[p] == side) {
                     DisplayText("start square " + Algebraic(p));
                     start = p;
                     return 0;
@@ -277,21 +287,18 @@
                 dest = p;
                 w.postMessage("play=" + start + "=" + dest);
                 SetBoard();
-                DisplayText(Algebraic(start) + Algebraic(dest));
+                var piece = b[start];
+                var capture = b[dest];
+                DisplayText(LongAlgebraic(piece, start, dest, capture));
                 start = -1;
-                if (player[xside] == 0)
+                if (player[xside] == HUMAN)
                     return 0;
                 xside = side; side = side ^ 1;
                 Go();
-                DisplayText(Algebraic(root_start) + Algebraic(root_dest) + " " + positions);//
-                if (positions < 2) {
-                    alert("pos");
-                    if (Attack(xside, Kingloc[side]))
-                        DisplayText("Checkmate!");
-                    else
-                        DisplayText("Stalemate!");
-                    return 0;
-                }
+                const d = new Date();
+                var time = d.getTime();
+                DisplayText("alert=time 1 " + time);
+
                 MakeMove(root_start, root_dest);
                 ply = 0;
                 first_move[0] = 0;
@@ -327,7 +334,8 @@
             var a2 = "";
             if (a == undefined) return a2;
             for (var x = 0; x < a.length; x++) {
-                if (a.charAt(x) == "=") break;
+                if (a.charAt(x) == "=")
+                    break;
                 a2 += a.charAt(x);
             }
             return a2;
@@ -344,9 +352,77 @@
             }
             return a2;
         }
+
         function LoadDiagram() {
             var a = document.getElementById("fen").value;
             w.postMessage("diag=" + a);
+        }
+
+        function Create2DArray(r, c1) {
+            var x = [];
+            x.length = r;
+            for (var i = 0; i < r; i++) {
+                x[i] = [];
+                x[i].length = c1;
+                for (var j = 0; j < c1; j++) {
+                    x[i][j] = 0;
+                }
+            }
+            return x;
+        }
+
+        function SetImages() {
+            Letters[0] = "blank.jpg";
+            Letters[1] = "fa.jpg";
+            Letters[2] = "fb.jpg";
+            Letters[3] = "fc.jpg";
+            Letters[4] = "fd.jpg";
+            Letters[5] = "fe.jpg";
+            Letters[6] = "ff.jpg";
+            Letters[7] = "fg.jpg";
+            Letters[8] = "fh.jpg";
+
+            Numbers[0] = "blank.jpg";
+            Numbers[1] = "r1.jpg";
+            Numbers[2] = "r2.jpg";
+            Numbers[3] = "r3.jpg";
+            Numbers[4] = "r4.jpg";
+            Numbers[5] = "r5.jpg";
+            Numbers[6] = "r6.jpg";
+            Numbers[7] = "r7.jpg";
+            Numbers[8] = "r8.jpg";
+
+            WhiteImg[0][0] = "wp.jpg";
+            WhiteImg[1][0] = "wn.jpg";
+            WhiteImg[2][0] = "wb.jpg";
+            WhiteImg[3][0] = "wr.jpg";
+            WhiteImg[4][0] = "wq.jpg";
+            WhiteImg[5][0] = "wk.jpg";
+            WhiteImg[6][0] = "w.jpg";
+
+            WhiteImg[0][1] = "wp2.jpg";
+            WhiteImg[1][1] = "wn2.jpg";
+            WhiteImg[2][1] = "wb2.jpg";
+            WhiteImg[3][1] = "wr2.jpg";
+            WhiteImg[4][1] = "wq2.jpg";
+            WhiteImg[5][1] = "wk2.jpg";
+            WhiteImg[6][1] = "b.jpg";
+
+            BlackImg[0][0] = "bp.jpg";
+            BlackImg[1][0] = "bn.jpg";
+            BlackImg[2][0] = "bb.jpg";
+            BlackImg[3][0] = "br.jpg";
+            BlackImg[4][0] = "bq.jpg";
+            BlackImg[5][0] = "bk.jpg";
+            BlackImg[6][0] = "w.jpg";
+
+            BlackImg[0][1] = "bp2.jpg";
+            BlackImg[1][1] = "bn2.jpg";
+            BlackImg[2][1] = "bb2.jpg";
+            BlackImg[3][1] = "br2.jpg";
+            BlackImg[4][1] = "bq2.jpg";
+            BlackImg[5][1] = "bk2.jpg";
+            BlackImg[6][1] = "b.jpg";
         }
     </script>
 </body>
