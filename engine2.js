@@ -49,8 +49,6 @@ var fifty = 0;
 var ply = 0, hply = 0;
 var nodes = 0;
 
-var bug;//
-
 function Create2DArray(r, c1) {
     var x = [];
     x.length = r;
@@ -284,26 +282,30 @@ var Piece_mat = []; Piece_mat.length = 2;
 var board = []; board.length = 64;
 var color = []; color.length = 64;
 var first_move = []; first_move.length = 64;
-
 var mask = []; mask.length = 64;
 var not_mask = []; not_mask.length = 64;
 
 var Hist = new Create2DArray(64, 64);
-var King_endgame = new Create2DArray(2, 64);
 var square_score = new Create3DArray(2, 7, 64);
-var Passed = new Create2DArray(2, 64);
+
 var Kmoves = new Create2DArray(64, 9);
 var Knightmoves = new Create2DArray(64, 9);
 var Kingmoves = new Create2DArray(64, 9);
+
+var bit_pieces = new Create2DArray(2, 7);
+
+var King_endgame = new Create2DArray(2, 64);
+var Passed = new Create2DArray(2, 64);
 var mask_passed = new Create2DArray(2, 64);
 var mask_isolated = new Create2DArray(2, 64);
-var bit_pieces = new Create2DArray(2, 7);
-var pawnmove = new Create2DArray(2, 64);//
-var pawndouble = new Create2DArray(2, 64);//
-var pawncaptures = new Create2DArray(2, 64);//
-var pawncaptureleft = new Create2DArray(2, 64);//
-var pawncaptureright = new Create2DArray(2, 64);//
-var rank = new Create2DArray(2, 64);//
+var pawnmove = new Create2DArray(2, 64);
+var pawndouble = new Create2DArray(2, 64);
+var pawncaptures = new Create2DArray(2, 64);
+var pawncaptureleft = new Create2DArray(2, 64);
+var pawncaptureright = new Create2DArray(2, 64);
+var rank = new Create2DArray(2, 64);
+
+const ISOLATED_SCORE = [-20, 20];
 
 var piece_char = ["P", 'N', 'B', 'R', 'Q', 'K'];
 
@@ -503,7 +505,6 @@ const BishopCapScore = [c - 30, c + 70, c + 170, c + 270, c + 370, c + 0];
 const RookCapScore = [c - 50, c + 50, c + 150, c + 250, c + 350, c + 0];
 const QueenCapScore = [c - 90, c + 10, c + 110, c + 210, c + 310, c + 0];
 const KingCapScore = [c + 0, c + 100, c + 200, c + 300, c + 400, c + 0];
-//board[sq] * 10 - 9
 
 function SetUp() {
     SetTables();
@@ -546,7 +547,7 @@ function SetTables() {
         King_endgame[0][x] = KING_ENDGAME_SCORE[x] - square_score[0][5][x];
         King_endgame[1][x] = KING_ENDGAME_SCORE[x] - square_score[1][5][x];
         Passed[0][x] = PASSED_SCORE[f];
-        Passed[1][x] = PASSED_SCORE[x];
+        Passed[1][x] = -PASSED_SCORE[x];
     }
 }
 
@@ -746,7 +747,7 @@ function LineCheck2(s, sq, d, p1, p2) {
     return false;
 }
 
-function LineCheck3(s, sq, d, sq2) {//
+function LineCheck3(s, sq, d, sq2) {
     sq = Kmoves[sq][d];
     while (sq > -1) {
         if (color[sq] != EMPTY) {
@@ -760,8 +761,6 @@ function LineCheck3(s, sq, d, sq2) {//
 }
 
 function Attack(s, sq) {
-    sq = Number(sq);
-
     if (color[pawncaptureleft[1 - s][sq]] == s &&
         board[pawncaptureleft[1 - s][sq]] == P)
         return true;
@@ -788,15 +787,13 @@ function Attack(s, sq) {
     if (LineCheck2(s, sq, EAST, R, Q)) return true;
     if (LineCheck2(s, sq, WEST, R, Q)) return true;
 
-    if (Kingloc[s] > -1 && Math.abs(COL[sq] - COL[Kingloc[s]]) < 2 && Math.abs(ROW[sq] - ROW[Kingloc[s]]) < 2)
+    if (Math.abs(COL[sq] - COL[Kingloc[s]]) < 2 && Math.abs(ROW[sq] - ROW[Kingloc[s]]) < 2)
         return true;
 
     return false;
 }
 
 function LowestAttacker(s, x) {
-    x = Number(x);
-
     if (color[pawncaptureleft[xside][x]] == s &&
         board[pawncaptureleft[xside][x]] == P)
         return pawncaptureleft[xside][x];
@@ -833,14 +830,13 @@ function LowestAttacker(s, x) {
     sq = LineCheck(s, x, SW, Q); if (sq > -1) return sq;
     sq = LineCheck(s, x, SE, Q); if (sq > -1) return sq;
 
-    if (Kingloc[s] > -1 && Math.abs(COL[x] - COL[Kingloc[s]]) < 2 && Math.abs(ROW[x] - ROW[Kingloc[s]]) < 2)
+    if (Math.abs(COL[x] - COL[Kingloc[s]]) < 2 && Math.abs(ROW[x] - ROW[Kingloc[s]]) < 2)
         return Kingloc[s];
 
     return -1;
 }
 
 function IsCheck(s, p, sq, k) {
-    sq = Number(sq);
     if (p == P) {
         if (pawncaptureleft[s][sq] == k)
             return true;
@@ -921,19 +917,6 @@ function Hashtable() {
     this.from = 0;
     this.to = 0;
 }
-/*
-function createHashtableArray() {
-    // Initialize a [2][500000] array
-     table = Array.from({ length: 2 }, () =>
-        Array.from({ length: 500000 }, () => new Hashtable())
-    );
-
-    return table; // Return the 2D array of hashtable objects
-}
-*/
-
-// Example usage
-//myHashtableArray = createHashtableArray();
 
 function hashp() {
     var hashlock = 0;
@@ -950,25 +933,10 @@ var clashes = 0, collisions = 0;
 var hash_start, hash_dest;
 
 function SetPawnHash() {
-    var test = []; //test.length = 2;//??
-    //for (var s = 0; s < 2; x++)
-    for (var x = 0; x < 100; x++) {
-        //test[s][x] = new hashp();
-        test.push(new hashp());
-    }
-    /*
-    for (var s = 0; s < 2; x++)
-        for (var x = 0; x < HASHSIZE + 100000; x++) {
-            hashpos[s][x] = new hashp();
-            //hashpos[s].push(new hashp());
-        }
-        */
-    //*
     for (x = 0; x < HASHSIZE + 100000; x++) {
         white_hashtable.push(new hashp());
         black_hashtable.push(new hashp());
     }
-    //*/
     for (var x = 0; x < MAXPAWNHASH; x++) {
         hashpawns.push(new hashpawn());
     }
@@ -996,7 +964,6 @@ function Random(x) {
 }
 
 function AddHash(s, m) {
-    //*
     if (s == 0) {
         white_hashtable[currentkey].hashlock = currentlock;
         white_hashtable[currentkey].from = m.from;
@@ -1006,10 +973,6 @@ function AddHash(s, m) {
         black_hashtable[currentkey].from = m.from;
         black_hashtable[currentkey].to = m.to;
     }
-    /*/
-    hashpos[s][currentkey].hashlock = currentlock;
-    hashpos[s][currentkey].from = m.from;
-    hashpos[s][currentkey].to = m.to;*/
 }
 
 function AddKey(s, p, x) {
@@ -1045,12 +1008,6 @@ function GetLock() {
 }
 
 function LookUp(s) {
-    /*
-    if (hashpos[s][currentkey].hashlock != currentlock)
-        return false;
-    hash_start = hashpos[s][currentkey].from;
-    hash_dest = hashpos[s][currentkey].to;*/
-    //*
     if (s == 0) {
         if (white_hashtable[currentkey].hashlock != currentlock)
             return false;
@@ -1062,7 +1019,6 @@ function LookUp(s) {
         hash_start = black_hashtable[currentkey].from;
         hash_dest = black_hashtable[currentkey].to;
     }
-    //*/
     return true;
 }
 
@@ -1110,7 +1066,6 @@ function Eval() {
     } else {
         score += GetHashPawns();
     }
-
     if (Kingloc[0] > -1) {
         if (bit_pieces[1][Q] == 0)
             score += King_endgame[0][Kingloc[0]];
@@ -1137,28 +1092,19 @@ function Eval() {
 
 function EvalPawns() {
     var score = 0;
-    var s, xs;
+    var s;
     for (var x = A2; x < A8; x++) {
         if (board[x] == P) {
             s = color[x];
-            xs = s ^ 1;
-            if (!(mask_passed[s][x] & bit_pieces[xs][P]))
-                if (s == 0)
-                    score += Passed[s][x];
-                else
-                    score -= Passed[s][x];
+            if (!(mask_passed[s][x] & bit_pieces[s ^ 1][P]))
+                score += Passed[s][x];
             if ((mask_isolated[x] & bit_pieces[s][P]) == 0)
-                if (s == 0)
-                    score -= 20;
-                else
-                    score += 20;
+                score += ISOLATED_SCORE[s];
         }
     }
     AddHashPawns(score);
     return score;
 }
-
-var currentmax;
 
 function Think() {
     root_start = 0;
@@ -1190,8 +1136,6 @@ function Think() {
     }
     const start = Date.now();
     for (var i = 1; i <= max_depth; i++) {
-        currentmax = i;
-
         currentkey = GetKey();
         currentlock = GetLock();
 
@@ -1301,7 +1245,6 @@ function Search(alpha, beta, depth) {
                 root_start = from;
                 root_dest = to;
                 root_score = score;
-                //postMessage(" best " + root_start + " " + root_dest);
             }
         }
         if (score > alpha) {
@@ -1591,10 +1534,7 @@ function MakeMove(from, to) {
 
     // Handle en passant
     if (board[from] == P && board[to] == EMPTY && COL[from] != COL[to]) {
-        if (side == 0)
-            RemovePiece(xside, P, to - 8);
-        else
-            RemovePiece(xside, P, to + 8);
+        RemovePiece(xside, P, pawnmove[xside][to]);
     }
     else if (board[to] != EMPTY) {
         // Capture move
@@ -1619,7 +1559,7 @@ function MakeMove(from, to) {
     }
 
     // Handle pawn promotion
-    if (board[from] == P && (ROW[to] == 0 || ROW[to] == 7)) {
+    if (board[from] == P && rank[side][to] == 7) {
         RemovePiece(side, P, from);
         AddPiece(side, Q, to);
         game_list[hply].promote = Q;
@@ -1674,19 +1614,15 @@ function TakeBack() {
 
     // Restore the fifty-move rule counter
     fifty = game_list[hply].fifty;
-    //*
+
     // Handle en passant undo
     if (board[to] === P && game_list[hply].capture == EMPTY && COL[from] !== COL[to]) {
         UpdatePiece(side, P, to, from);
-        if (side === 0) {
-            AddPiece(xside, P, to - 8);  // Restore captured pawn for black
-        } else {
-            AddPiece(xside, P, to + 8);  // Restore captured pawn for white
-        }
+        AddPiece(xside, P, pawnmove[xside][to]);
         return;
     }
 
-    if (game_list[hply].start_piece == P && (ROW[to] == 0 || ROW[to] == 7)) {
+    if (game_list[hply].start_piece == P && rank[side][to] == 7) {
         AddPiece(side, P, from);
         RemovePiece(side, board[to], to);
     }
@@ -1814,16 +1750,10 @@ function GenEp() {
 
     if (board[ep] == 0 && color[ep] == xside && Math.abs(game_list[hply - 1].from - ep) == 16) {
         if (COL[ep] > 0 && color[ep - 1] == side && board[ep - 1] == P) {
-            if (side == 0)
-                AddCapture(ep - 1, ep + 8, 10);
-            else
-                AddCapture(ep - 1, ep - 8, 10);
+            AddCapture(ep - 1, pawnmove[side][ep], 10);
         }
         if (COL[ep] < 7 && color[ep + 1] == side && board[ep + 1] == P) {
-            if (side == 0)
-                AddCapture(ep + 1, ep + 8, 10);
-            else
-                AddCapture(ep + 1, ep - 8, 10);
+            AddCapture(ep + 1, pawnmove[side][ep], 10);
         }
     }
 }
@@ -2077,7 +2007,7 @@ function LoadDiagram(ts) {
     currentpawnkey = 0;
     currentpawnlock = 0;
 
-    var count = 0, i = 0, j;
+    var i = 0, j;
     var a;
 
     for (x = 0; x < ts.length; x++) {
@@ -2264,48 +2194,4 @@ function ShowList() {
     }
     s += " num " + (first_move[ply + 1] - first_move[ply]);
     postMessage("alert= " + s);
-}
-
-function Evasion() {
-    move_count = first_move[ply];
-    if (hply > 0)
-        GenEp();
-
-    for (var x = 0; x < 64; x++) {
-        if (color[x] == side) {
-            switch (board[x]) {
-                case P:
-                    GenPawn(x);
-                    break;
-                case N:
-                    GenKnight(x);
-                    break;
-                case B:
-                    GenBishop(x, NE);
-                    GenBishop(x, SE);
-                    GenBishop(x, SW);
-                    GenBishop(x, NW);
-                    break;
-                case R:
-                    GenRook(x, NORTH);
-                    GenRook(x, EAST);
-                    GenRook(x, SOUTH);
-                    GenRook(x, WEST);
-                    break;
-                case Q:
-                    GenQueen(x, NE);
-                    GenQueen(x, SE);
-                    GenQueen(x, SW);
-                    GenQueen(x, NW);
-                    GenQueen(x, NORTH);
-                    GenQueen(x, EAST);
-                    GenQueen(x, SOUTH);
-                    GenQueen(x, WEST);
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-    first_move[ply + 1] = move_count;
 }
