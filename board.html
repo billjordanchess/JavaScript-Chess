@@ -4,7 +4,7 @@
     <script type="text/javascript" src="engine2.js"></script>
 </head>
 <body onload="SetBoard()">
-    <table>
+    <table border=1 align="center">
         <tr>
             <td>
                 <table border=1>
@@ -27,53 +27,69 @@
             <td>
                 <br />
                 <form>
-                    JJJ Chess Engine V 1.1 11/10/24
-                    <input type="button" id="new" name="newgame" value="New Game" onclick="NewGame();">
-                    <br>
-                    <label for="fen">
-                        Paste fen position
-                        <br>
-                        <input type="text" id="fen" name="fen" value="" size="60">
-                        <br>
-                        <input type="button" id="load" name="load" value="Load Position" onclick="LoadDiagram();">
-                        <br>
-                        <table border=1>
-                            <tr>
-                                <td id=level>1</td>
-                            </tr>
-                        </table>
-                        <input type="button" id="addlevel" name="addlevel" value="+" onclick="AddLevel();">
-                        <label for "level">
-                            Select Level
-                            <input type="button" id="sublevel" name="sublevel" value="-" onclick="SubLevel();">
-                            <br>
-                            <input type="button" id="white" name="white" value="White" onclick="SetPlayer(0);">
-                            <input type="button" id="black" name="black" value="Black" onclick="SetPlayer(1);">
-                            <table border=1>
-                                <tr>
-                                    <td id=players></td>
-                                </tr>
-                            </table>
-                            <input type="button" id="go" name="go" value="Go" onclick="Go();">
-                            <br>
-                            <input type="button" id="flipbb" name="flipb" value="Flip Board" onclick="FlipBoard();">
-                            <br>
-                            <input type="button" id="takeback" name="takeback" value="Take Back" onclick="TakeBackMove();">
-                            <br>
-                            <label for "info">
-                                Info
-                                <table border=1 width=400 height=50>
-                                    <tr>
-                                        <td id=info></td>
-                                    </tr>
-                                </table>
-            </td>
-            </form>
+                    <table border="1" cellspacing="10">
+                        <tr>
+                            <td>
+                                BJJ Chess Engine V 1.2 31/10/24
+                                <input type="button" id="new" name="newgame" value="New Game" onclick="NewGame();">
+                                <br>
+                                <label for="fen">
+                                    Paste fen position
+                                    <br>
+                                    <input type="text" id="fen" name="fen" value="" size="60">
+                                    <br>
+                                    <input type="button" id="load" name="load" value="Load Position" onclick="LoadDiagram();">
+                                    <input type="button" id="save" name="save" value="Save Position" onclick="SaveDiagram();">
+                                    <br>
+                                    <table border=1>
+                                        <tr>
+                                            <td><label for "level">Select Depth</td>
+                                            <td><input type="button" id="addlevel" name="addlevel" value="+" onclick="AddLevel();"></td>
+                                            <td id=level>1</td>
+                                            <td><input type="button" id="sublevel" name="sublevel" value="-" onclick="SubLevel();"></td>
+                                        </tr>
+                                    </table>
+                                    <table border=1>
+                                        <tr>
+                                            <td><label for "timelimit">Select Time&nbsp</td>
+                                            <td><input type="button" id="addtime" name="addtime" value="+" onclick="AddTime();"></td>
+                                            <td id=timelimit>0</td>
+                                            <td><input type="button" id="subtime" name="subtime" value="-" onclick="SubTime();"></td>
+                                        </tr>
+                                    </table>
+                                    <br>
+                                    <input type="button" id="white" name="white" value="White" onclick="SetPlayer(0);">
+                                    <input type="button" id="black" name="black" value="Black" onclick="SetPlayer(1);">
+                                    <table border=1>
+                                        <tr>
+                                            <td id=players></td>
+                                        </tr>
+                                    </table>
+                                    <input type="button" id="go" name="go" value="Go" onclick="Go();">
+                                    <input type="button" id="auto" name="auto" value="auto" onclick="Auto();">
+                                    <br>
+                                    <input type="button" id="flipbb" name="flipb" value="Flip Board" onclick="FlipBoard();">
+                                    <br>
+                                    <input type="button" id="firstmove" name="firstmove" value="<<" onclick="FirstMove();">
+                                    <input type="button" id="takeback" name="takeback" value="<" onclick="TakeBackMove();">
+                                    <input type="button" id="forward" name="forward" value=">" onclick="ForwardMove();">
+                                    <input type="button" id="lastmove" name="lastmove" value=">>" onclick="LastMove();">
+                                    <br>
+                                    <label for "info">
+                                        Info
+                                        <table border=1 width=400 height=50>
+                                            <tr>
+                                                <td id=info></td>
+                                            </tr>
+                                        </table>
+                            </td>
+                </form>
             </td>
             <br>
         </tr>
     </table>
-    <table border=1 width=680 height=50>
+    </td></tr></table>
+    <table border=1 width=756 height=50 align="center">
         <tr>
             <td id=box></td>
         </tr>
@@ -81,7 +97,7 @@
     <script language="javascript">
         var Letters = []; Letters.length = 8;
         var Numbers = []; Numbers.length = 8;
-        var b = [
+        var web_board = [
             3, 1, 2, 4, 5, 2, 1, 3,
             0, 0, 0, 0, 0, 0, 0, 0,
             6, 6, 6, 6, 6, 6, 6, 6,
@@ -91,6 +107,18 @@
             0, 0, 0, 0, 0, 0, 0, 0,
             3, 1, 2, 4, 5, 2, 1, 3
         ];
+
+        var web_color = [
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            6, 6, 6, 6, 6, 6, 6, 6,
+            6, 6, 6, 6, 6, 6, 6, 6,
+            6, 6, 6, 6, 6, 6, 6, 6,
+            6, 6, 6, 6, 6, 6, 6, 6,
+            1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1
+        ];
+
         const SQUARE_COLOR = [
             1, 0, 1, 0, 1, 0, 1, 0,
             0, 1, 0, 1, 0, 1, 0, 1,
@@ -100,16 +128,6 @@
             0, 1, 0, 1, 0, 1, 0, 1,
             1, 0, 1, 0, 1, 0, 1, 0,
             0, 1, 0, 1, 0, 1, 0, 1
-        ];
-        var color = [
-            0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0,
-            6, 6, 6, 6, 6, 6, 6, 6,
-            6, 6, 6, 6, 6, 6, 6, 6,
-            6, 6, 6, 6, 6, 6, 6, 6,
-            6, 6, 6, 6, 6, 6, 6, 6,
-            1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1
         ];
 
         const HUMAN = 0;
@@ -127,11 +145,15 @@
         var E8 = 60;
         var max_nodes = 0;
         var max_depth;
+        var max_time = 0;
         var Safari = 1;
         start = -1;
         var side = 0;
         var first, second, line;
         var goflag = 0;
+        var currentply = 0;
+        var lastply = 0;
+        var w;
 
         DisplayPlayers();
         SetImages();
@@ -155,6 +177,8 @@
                         SetBoard();
                         DisplayInfo("");
                     }
+                    if (first == "fen")
+                        DisplayFen(second);
                     if (first == "side") {
                         side = (second);
                         xside = side ^ 1;
@@ -177,9 +201,9 @@
 
         function GetBoard(a) {
             for (var x = 0; x < 64; x++)
-                b[x] = Number(a.charAt(x));
+                web_board[x] = Number(a.charAt(x));
             for (var x = 64; x < 128; x++)
-                color[x - 64] = Number(a.charAt(x));
+                web_color[x - 64] = Number(a.charAt(x));
         }
 
         var tbl = document.getElementById("tblMain");
@@ -198,10 +222,10 @@
                     y = x;
                 else
                     y = 63 - x;
-                if (color[y] == 0)
-                    a2 = WhiteImg[b[y]][SQUARE_COLOR[y]];
+                if (web_color[y] == 0)
+                    a2 = WhiteImg[web_board[y]][SQUARE_COLOR[y]];
                 else
-                    a2 = BlackImg[b[y]][SQUARE_COLOR[y]];
+                    a2 = BlackImg[web_board[y]][SQUARE_COLOR[y]];
                 document.getElementById(x).src = folder + a2;
             }
         }
@@ -229,15 +253,29 @@
                     return;
                 }
                 if (goflag == 1) return;
+                SetButtons(true);
                 w.postMessage("depth=" + max_depth);
+                w.postMessage("time=" + max_time);
                 w.postMessage("think=" + side);
                 w.postMessage("info");
                 SetBoard();
                 goflag = 1;
             }
-            goflag = 0;
         }
-        
+        /*
+        function Auto() {//??
+            w.postMessage("new");
+            w.postMessage("add=" + "New Game");
+            while (1) {
+                if (ResultCheck > 0)
+                    return;
+                w.postMessage("depth=" + max_depth);
+                w.postMessage("think=" + side);
+                w.postMessage("info");
+                SetBoard();
+            }
+        }
+*/
         function ResultCheck() {
             postMessage(" fifty " + fifty);
             if (fifty >= 100) {
@@ -258,28 +296,30 @@
         function DisplayInfo(a) {
             var x1 = document.getElementById('info');
             x1.innerHTML = a;
+            goflag = 0;
+            SetButtons(false);
         }
         function GetValue(cell) {
             var p = cell.id - 100;
             if (flipboard == 1)
                 p = 63 - p;
             if (start == -1) {
-                if (b[p] == EMPTY) {
+                if (web_board[p] == EMPTY) {
                     DisplayText("no piece on " + Algebraic(p));
                     return 0;
                 }
-                if (color[p] == 1 - side) {
-                    DisplayText(" no wrong side " + Algebraic(p));
+                if (web_color[p] == 1 - side) {
+                    DisplayText(" wrong side " + Algebraic(p));
                     return 0;
                 }
-                if (color[p] == side) {
+                if (web_color[p] == side) {
                     DisplayText("start square " + Algebraic(p));
                     start = p;
                     return 0;
                 }
             }
             else {
-                if (color[p] == side) {
+                if (web_color[p] == side) {
                     DisplayText("start square " + Algebraic(p));
                     start = p;
                     return 0;
@@ -287,26 +327,41 @@
                 dest = p;
                 w.postMessage("play=" + start + "=" + dest);
                 SetBoard();
-                var piece = b[start];
-                var capture = b[dest];
+                var piece = web_board[start];
+                var capture = web_board[dest];
                 DisplayText(LongAlgebraic(piece, start, dest, capture));
                 start = -1;
                 if (player[xside] == HUMAN)
                     return 0;
                 xside = side; side = side ^ 1;
+                SetButtons(true);
                 Go();
+                SetButtons(false);
                 const d = new Date();
                 var time = d.getTime();
                 DisplayText("alert=time 1 " + time);
-
-                MakeMove(root_start, root_dest);
+                SetButtons(false);
                 ply = 0;
                 first_move[0] = 0;
                 SetBoard();
             }
         }
+
+        function FirstMove() {
+            if (lastply > 0)
+                w.postMessage("firstmove");
+        }
         function TakeBackMove() {
-            w.postMessage("takeback");
+            if (lastply > 0)
+                w.postMessage("takeback");
+        }
+        function ForwardMove() {
+            if (lastply > currentply)
+                w.postMessage("forward");
+        }
+        function LastMove() {
+            if (lastply > currentply)
+                w.postMessage("lastmove");
         }
         function GetSquareNumber(sq) {
             var file, rank, square;
@@ -328,6 +383,28 @@
                 max_depth--;
             var x1 = document.getElementById('level');
             x1.innerHTML = max_depth;
+        }
+        function AddTime() {
+            if (max_time < 60)
+                max_time++;
+            var x1 = document.getElementById('timelimit');
+            x1.innerHTML = max_time;
+        }
+
+        function SubTime() {
+            if (max_time > 0)
+                max_time--;
+            var x1 = document.getElementById('timelimit');
+            x1.innerHTML = max_time;
+        }
+
+        function SetButtons(flag) {
+            document.getElementById("firstmove").disabled = true;
+            document.getElementById("lastmove").disabled = true;
+            document.getElementById("takeback").disabled = true;
+            document.getElementById("forward").disabled = true;
+            document.getElementById("auto").disabled = true;
+            document.getElementById("go").disabled = flag;
         }
 
         function FirstPart(a) {
@@ -356,6 +433,16 @@
         function LoadDiagram() {
             var a = document.getElementById("fen").value;
             w.postMessage("diag=" + a);
+        }
+
+        function SaveDiagram() {
+            var a = "";
+            w.postMessage("save=");
+            document.getElementById("fen").value = a;
+        }
+
+        function DisplayFen(a) {
+            document.getElementById("fen").value = a;
         }
 
         function Create2DArray(r, c1) {
