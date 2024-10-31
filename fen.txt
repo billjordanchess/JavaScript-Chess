@@ -3,16 +3,8 @@ r4rk1/1b2bppp/ppq1p3/2pp3n/5P2/1P1BP3/PBPPQ1PP/R4RK1 w - - 0 1 //bauer
 2r2rk1/pp2bpp1/4pn1p/qb1nN3/3P3B/1BN5/PPQ2PPP/3RR1K1 w - - 0 1 //capa
 2r2rk1/pp4pp/2n1pq2/2bp4/8/2N3PB/PP2PP1P/R2Q1RK1 w - - 0 1 //lasker1
 rn1qkbnr/ppp2pp1/3p3p/4p3/2B1P1b1/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1 //legal
-r1bqk2r/pppp1ppp/2n2n2/2b1p1N1/2B1P3/8/PPPP1PPP/RNBQK2R w KQkq - 0 5 //traxler
 r2q1rk1/pppbbppp/2np1n2/1B2p3/3PP3/2N2N2/PPP2PPP/R1BQR1K1 w - - 0 1 //tarrasch
 1r1q2k1/6p1/1r1pppP1/8/8/8/PPP5/1KQR3R w - - 0 1 //long
-1r1q2k1/6p1/1r1pppP1/8/8/8/PPP5/1KQ4R w - - 0 1;//long2
-1r1q2k1/6p1/1r1pppP1/8/8/8/PPP5/1K5Q w - - 0 1;//long3
-1r1q1k2/6pQ/1r1pppP1/8/8/8/PPP5/1K6 w - - 0 1;//long4
-1r1q3Q/4k1p1/1r1pppP1/8/8/8/PPP5/1K6 w - - 0 1;//long5
-1r1qk3/6Q1/1r1pppP1/8/8/8/PPP5/1K6 w - - 0 1;//long6
-6k1/5p2/8/8/8/8/5P2/6K1 w - - 0 1;//k+p
-8/8/3k4/8/4K3/8/8/2R5 w - - 0 1;//k+r
-7r/7r/8/8/8/8/5R2/k3K2R w K - 0 1//castle mate
+rr4k1/6pp/8/4N3/8/8/P3Q3/6K1 w - - 0 1//smothered mate
 
-//var e = Eval();
+//some test positions
