@@ -42,7 +42,7 @@ var currentkey = 0;
 var currentlock = 0;
 var currentpawnkey = 0;
 var currentpawnlock = 0;
-var root_start, root_dest, root_score;
+var root_from, root_to, root_score;
 var move_count;
 var side = 0, xside = 1;
 var fifty = 0;
@@ -79,20 +79,20 @@ function Create3DArray(r, c1, c2) {
     return x;
 }
 
-function Algebraic(x) {
-    const file = 'abcdefgh'[COL[x]];
-    const rank = ROW[x] + 1;
+function Algebraic(sq) {
+    const file = 'abcdefgh'[COL[sq]];
+    const rank = ROW[sq] + 1;
     return file + rank;
 }
 
-function LongAlgebraic(p, x, y, capture) {
+function LongAlgebraic(p, from, to, capture) {
     var piece = piece_char[p];
     if (p == P) piece = "";
-    const file = 'abcdefgh'[COL[x]];
-    const rank = ROW[x] + 1;
+    const file = 'abcdefgh'[COL[from]];
+    const rank = ROW[from] + 1;
     var hyphen = "-";
     if (capture != EMPTY) hyphen = "x";
-    return piece + file + rank + hyphen + Algebraic(y);
+    return piece + file + rank + hyphen + Algebraic(to);
 }
 
 onmessage = function (event) {
@@ -177,11 +177,11 @@ function CompMove(a2) {
     if (millis > 0) nps = nodes * 1000 / millis;
     side = Number(a2);
     xside = side ^ 1;
-    var piece = board[root_start];
-    var capture = board[root_dest];
-    MakeMove(root_start, root_dest);
+    var piece = board[root_from];
+    var capture = board[root_to];
+    MakeMove(root_from, root_to);
     CopyBoard();
-    var a1 = LongAlgebraic(piece, root_start, root_dest, capture) + " depth " + max_depth + "<br> score " + root_score + "<br>";
+    var a1 = LongAlgebraic(piece, root_from, root_to, capture) + " depth " + max_depth + "<br> score " + root_score + "<br>";
     a1 += " Time " + millis + " Nodes " + nodes + " Nodes per second " + Math.round(nps);
     postMessage("info=" + a1);
 }
@@ -288,9 +288,9 @@ var not_mask = []; not_mask.length = 64;
 var Hist = new Create2DArray(64, 64);
 var square_score = new Create3DArray(2, 7, 64);
 
-var Kmoves = new Create2DArray(64, 9);
-var Knightmoves = new Create2DArray(64, 9);
-var Kingmoves = new Create2DArray(64, 9);
+var LineMoves = new Create2DArray(64, 9);
+var KnightMoves = new Create2DArray(64, 9);
+var KingMoves = new Create2DArray(64, 9);
 
 var bit_pieces = new Create2DArray(2, 7);
 
@@ -298,18 +298,16 @@ var King_endgame = new Create2DArray(2, 64);
 var Passed = new Create2DArray(2, 64);
 var mask_passed = new Create2DArray(2, 64);
 var mask_isolated = new Create2DArray(2, 64);
-var pawnmove = new Create2DArray(2, 64);
-var pawndouble = new Create2DArray(2, 64);
+var PawnMove = new Create2DArray(2, 64);
+var PawnDouble = new Create2DArray(2, 64);
 var pawncaptures = new Create2DArray(2, 64);
-var pawncaptureleft = new Create2DArray(2, 64);
-var pawncaptureright = new Create2DArray(2, 64);
+var PawnCaptureLeft = new Create2DArray(2, 64);
+var PawnCaptureRight = new Create2DArray(2, 64);
 var rank = new Create2DArray(2, 64);
 
 const ISOLATED_SCORE = [-20, 20];
-
-var piece_char = ["P", 'N', 'B', 'R', 'Q', 'K'];
-
-var piece_value = [100, 300, 300, 500, 900, 10000];
+const piece_char = ["P", 'N', 'B', 'R', 'Q', 'K'];
+const piece_value = [100, 300, 300, 500, 900, 10000];
 
 const INIT_COLOR = [
     0, 0, 0, 0, 0, 0, 0, 0,
@@ -499,17 +497,17 @@ var color = [
 ];
 
 var c = CAPTURE_SCORE;
-const PawnCapScore = [0 + c, c + 100, c + 200, c + 300, c + 400, 0 + c];
-const KnightCapScore = [c - 30, c + 70, c + 170, c + 270, c + 370, c + 0];
-const BishopCapScore = [c - 30, c + 70, c + 170, c + 270, c + 370, c + 0];
-const RookCapScore = [c - 50, c + 50, c + 150, c + 250, c + 350, c + 0];
-const QueenCapScore = [c - 90, c + 10, c + 110, c + 210, c + 310, c + 0];
-const KingCapScore = [c + 0, c + 100, c + 200, c + 300, c + 400, c + 0];
+const PawnCapScore = [0 + c, c + 100, c + 200, c + 300, c + 400];
+const KnightCapScore = [c - 30, c + 70, c + 170, c + 270, c + 370];
+const BishopCapScore = [c - 30, c + 70, c + 170, c + 270, c + 370];
+const RookCapScore = [c - 50, c + 50, c + 150, c + 250, c + 350];
+const QueenCapScore = [c - 90, c + 10, c + 110, c + 210, c + 310];
+const KingCapScore = [c + 0, c + 100, c + 200, c + 300, c + 400];
 
 function SetUp() {
     SetTables();
+    RandomizeHashTables();
     SetHashTables();
-    SetPawnHash();
     SetPawns();
     SetMoves();
     SetBits();
@@ -552,32 +550,40 @@ function SetTables() {
 }
 
 function SetPawns() {
-    for (x = A2; x <= H7; x++) {
-        pawnmove[0][x] = x + 8;
-        pawnmove[1][x] = x - 8;
+    for (x = A1; x <= H7; x++) {
+        PawnMove[0][x] = x + 8;
+    }
+    for (x = A2; x <= H8; x++) {
+        PawnMove[1][x] = x - 8;
+    }
+    for (x = 0; x < 8; x++) {
+        PawnMove[0][x] = x + 8;
+    }
+    for (x = A8; x <= H8; x++) {
+        PawnMove[1][x] = x - 8;
     }
     for (x = A2; x <= H2; x++) {
-        pawndouble[0][x] = x + 16;
+        PawnDouble[0][x] = x + 16;
     }
     for (x = A7; x <= H7; x++) {
-        pawndouble[1][x] = x - 16;
+        PawnDouble[1][x] = x - 16;
     }
     for (x = A2; x <= H7; x++) {
         if (COL[x] > 0) {
-            pawncaptureleft[0][x] = x + 7;
-            pawncaptureleft[1][x] = x - 9;
+            PawnCaptureLeft[0][x] = x + 7;
+            PawnCaptureLeft[1][x] = x - 9;
         }
         else {
-            pawncaptureleft[0][x] = x;
-            pawncaptureleft[1][x] = x;
+            PawnCaptureLeft[0][x] = x;
+            PawnCaptureLeft[1][x] = x;
         }
         if (COL[x] < 7) {
-            pawncaptureright[0][x] = x + 9;
-            pawncaptureright[1][x] = x - 7;
+            PawnCaptureRight[0][x] = x + 9;
+            PawnCaptureRight[1][x] = x - 7;
         }
         else {
-            pawncaptureright[0][x] = x;
-            pawncaptureright[1][x] = x;
+            PawnCaptureRight[0][x] = x;
+            PawnCaptureRight[1][x] = x;
         }
     }
     for (var x = 0; x < 64; x++) {
@@ -593,57 +599,57 @@ function SetMoves() {
     for (x = 0; x < 64; x++) {
         k = 0;
         if (ROW[x] < 6 && COL[x] < 7)
-            Knightmoves[x][k++] = x + 17;
+            KnightMoves[x][k++] = x + 17;
         if (ROW[x] < 7 && COL[x] < 6)
-            Knightmoves[x][k++] = x + 10;
+            KnightMoves[x][k++] = x + 10;
         if (ROW[x] < 6 && COL[x] > 0)
-            Knightmoves[x][k++] = x + 15;
+            KnightMoves[x][k++] = x + 15;
         if (ROW[x] < 7 && COL[x] > 1)
-            Knightmoves[x][k++] = x + 6;
+            KnightMoves[x][k++] = x + 6;
         if (ROW[x] > 1 && COL[x] < 7)
-            Knightmoves[x][k++] = x - 15;
+            KnightMoves[x][k++] = x - 15;
         if (ROW[x] > 0 && COL[x] < 6)
-            Knightmoves[x][k++] = x - 6;
+            KnightMoves[x][k++] = x - 6;
         if (ROW[x] > 1 && COL[x] > 0)
-            Knightmoves[x][k++] = x - 17;
+            KnightMoves[x][k++] = x - 17;
         if (ROW[x] > 0 && COL[x] > 1)
-            Knightmoves[x][k++] = x - 10;
-        Knightmoves[x][k] = -1;
+            KnightMoves[x][k++] = x - 10;
+        KnightMoves[x][k] = -1;
     }
 
     for (x = 0; x < 64; x++) {
         k = 0;
 
         for (z = 0; z < 8; z++)
-            Kmoves[x][z] = -1;
+            LineMoves[x][z] = -1;
 
-        if (COL[x] > 0) Kmoves[x][WEST] = x - 1;
-        if (COL[x] < 7) Kmoves[x][EAST] = x + 1;
-        if (ROW[x] > 0) Kmoves[x][SOUTH] = x - 8;
-        if (ROW[x] < 7) Kmoves[x][NORTH] = x + 8;
-        if (COL[x] < 7 && ROW[x] < 7) Kmoves[x][NE] = x + 9;
-        if (COL[x] > 0 && ROW[x] < 7) Kmoves[x][NW] = x + 7;
-        if (COL[x] > 0 && ROW[x] > 0) Kmoves[x][SW] = x - 9;
-        if (COL[x] < 7 && ROW[x] > 0) Kmoves[x][SE] = x - 7;
+        if (COL[x] > 0) LineMoves[x][WEST] = x - 1;
+        if (COL[x] < 7) LineMoves[x][EAST] = x + 1;
+        if (ROW[x] > 0) LineMoves[x][SOUTH] = x - 8;
+        if (ROW[x] < 7) LineMoves[x][NORTH] = x + 8;
+        if (COL[x] < 7 && ROW[x] < 7) LineMoves[x][NE] = x + 9;
+        if (COL[x] > 0 && ROW[x] < 7) LineMoves[x][NW] = x + 7;
+        if (COL[x] > 0 && ROW[x] > 0) LineMoves[x][SW] = x - 9;
+        if (COL[x] < 7 && ROW[x] > 0) LineMoves[x][SE] = x - 7;
 
         y = 0;
         if (COL[x] > 0)
-            Kingmoves[x][y++] = x - 1;
+            KingMoves[x][y++] = x - 1;
         if (COL[x] < 7)
-            Kingmoves[x][y++] = x + 1;
+            KingMoves[x][y++] = x + 1;
         if (ROW[x] > 0)
-            Kingmoves[x][y++] = x - 8;
+            KingMoves[x][y++] = x - 8;
         if (ROW[x] < 7)
-            Kingmoves[x][y++] = x + 8;
+            KingMoves[x][y++] = x + 8;
         if (COL[x] < 7 && ROW[x] < 7)
-            Kingmoves[x][y++] = x + 9;
+            KingMoves[x][y++] = x + 9;
         if (COL[x] > 0 && ROW[x] < 7)
-            Kingmoves[x][y++] = x + 7;
+            KingMoves[x][y++] = x + 7;
         if (COL[x] > 0 && ROW[x] > 0)
-            Kingmoves[x][y++] = x - 9;
+            KingMoves[x][y++] = x - 9;
         if (COL[x] < 7 && ROW[x] > 0)
-            Kingmoves[x][y++] = x - 7;
-        Kingmoves[x][y] = -1;
+            KingMoves[x][y++] = x - 7;
+        KingMoves[x][y] = -1;
     }
 }
 
@@ -722,60 +728,60 @@ function NewPosition() {
 }
 
 function LineCheck(s, sq, d, p) {
-    sq = Kmoves[sq][d];
+    sq = LineMoves[sq][d];
     while (sq > -1) {
         if (color[sq] != EMPTY) {
             if (board[sq] == p && color[sq] == s)
                 return sq;
             break;
         }
-        sq = Kmoves[sq][d];
+        sq = LineMoves[sq][d];
     }
     return -1;
 }
 
 function LineCheck2(s, sq, d, p1, p2) {
-    sq = Kmoves[sq][d];
+    sq = LineMoves[sq][d];
     while (sq > -1) {
         if (color[sq] != EMPTY) {
             if ((board[sq] == p1 || board[sq] == p2) && color[sq] == s)
                 return true;
             break;
         }
-        sq = Kmoves[sq][d];
+        sq = LineMoves[sq][d];
     }
     return false;
 }
 
-function LineCheck3(s, sq, d, sq2) {
-    sq = Kmoves[sq][d];
+function LineCheck3(sq, d, sq2) {
+    sq = LineMoves[sq][d];
     while (sq > -1) {
         if (color[sq] != EMPTY) {
             if (sq == sq2)
                 return true;
             break;
         }
-        sq = Kmoves[sq][d];
+        sq = LineMoves[sq][d];
     }
     return false;
 }
 
 function Attack(s, sq) {
-    if (color[pawncaptureleft[1 - s][sq]] == s &&
-        board[pawncaptureleft[1 - s][sq]] == P)
+    if (color[PawnCaptureLeft[1 - s][sq]] == s &&
+        board[PawnCaptureLeft[1 - s][sq]] == P)
         return true;
-    if (color[pawncaptureright[1 - s][sq]] == s &&
-        board[pawncaptureright[1 - s][sq]] == P)
+    if (color[PawnCaptureRight[1 - s][sq]] == s &&
+        board[PawnCaptureRight[1 - s][sq]] == P)
         return true;
 
     var k = 0;
-    var sq2 = Knightmoves[sq][0];
+    var sq2 = KnightMoves[sq][0];
 
     while (sq2 > -1) {
         if (color[sq2] == s && board[sq2] == N)
             return true;
         k++;
-        sq2 = Knightmoves[sq][k];
+        sq2 = KnightMoves[sq][k];
     }
     if (LineCheck2(s, sq, NE, B, Q)) return true;
     if (LineCheck2(s, sq, NW, B, Q)) return true;
@@ -793,44 +799,44 @@ function Attack(s, sq) {
     return false;
 }
 
-function LowestAttacker(s, x) {
-    if (color[pawncaptureleft[xside][x]] == s &&
-        board[pawncaptureleft[xside][x]] == P)
-        return pawncaptureleft[xside][x];
-    if (color[pawncaptureright[xside][x]] == s &&
-        board[pawncaptureright[xside][x]] == P)
-        return pawncaptureright[xside][x];
+function LowestAttacker(s, sq) {
+    if (color[PawnCaptureLeft[xside][sq]] == s &&
+        board[PawnCaptureLeft[xside][sq]] == P)
+        return PawnCaptureLeft[xside][sq];
+    if (color[PawnCaptureRight[xside][sq]] == s &&
+        board[PawnCaptureRight[xside][sq]] == P)
+        return PawnCaptureRight[xside][sq];
 
     var k = 0;
-    var sq = Knightmoves[x][k];
+    var sq2 = KnightMoves[sq][k];
 
-    while (sq > -1) {
-        if (color[sq] == s && board[sq] == N)
-            return sq;
+    while (sq2 > -1) {
+        if (color[sq2] == s && board[sq2] == N)
+            return sq2;
         k++;
-        sq = Knightmoves[x][k];
+        sq2 = KnightMoves[sq][k];
     }
-    sq = LineCheck(s, x, NE, B); if (sq > -1) return sq;
-    sq = LineCheck(s, x, NW, B); if (sq > -1) return sq;
-    sq = LineCheck(s, x, SW, B); if (sq > -1) return sq;
-    sq = LineCheck(s, x, SE, B); if (sq > -1) return sq;
+    sq2 = LineCheck(s, sq, NE, B); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, NW, B); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, SW, B); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, SE, B); if (sq2 > -1) return sq2;
 
-    sq = LineCheck(s, x, NORTH, R); if (sq > -1) return sq;
-    sq = LineCheck(s, x, SOUTH, R); if (sq > -1) return sq;
-    sq = LineCheck(s, x, EAST, R); if (sq > -1) return sq;
-    sq = LineCheck(s, x, WEST, R); if (sq > -1) return sq;
+    sq2 = LineCheck(s, sq, NORTH, R); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, SOUTH, R); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, EAST, R); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, WEST, R); if (sq2 > -1) return sq2;
 
-    sq = LineCheck(s, x, NORTH, Q); if (sq > -1) return sq;
-    sq = LineCheck(s, x, SOUTH, Q); if (sq > -1) return sq;
-    sq = LineCheck(s, x, EAST, Q); if (sq > -1) return sq;
-    sq = LineCheck(s, x, WEST, Q); if (sq > -1) return sq;
+    sq2 = LineCheck(s, sq, NORTH, Q); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, SOUTH, Q); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, EAST, Q); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, WEST, Q); if (sq2 > -1) return sq2;
 
-    sq = LineCheck(s, x, NE, Q); if (sq > -1) return sq;
-    sq = LineCheck(s, x, NW, Q); if (sq > -1) return sq;
-    sq = LineCheck(s, x, SW, Q); if (sq > -1) return sq;
-    sq = LineCheck(s, x, SE, Q); if (sq > -1) return sq;
+    sq2 = LineCheck(s, sq, NE, Q); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, NW, Q); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, SW, Q); if (sq2 > -1) return sq2;
+    sq2 = LineCheck(s, sq, SE, Q); if (sq2 > -1) return sq2;
 
-    if (Math.abs(COL[x] - COL[Kingloc[s]]) < 2 && Math.abs(ROW[x] - ROW[Kingloc[s]]) < 2)
+    if (Math.abs(COL[sq] - COL[Kingloc[s]]) < 2 && Math.abs(ROW[sq] - ROW[Kingloc[s]]) < 2)
         return Kingloc[s];
 
     return -1;
@@ -838,54 +844,55 @@ function LowestAttacker(s, x) {
 
 function IsCheck(s, p, sq, k) {
     if (p == P) {
-        if (pawncaptureleft[s][sq] == k)
+        if (PawnCaptureLeft[s][sq] == k)
             return true;
-        if (pawncaptureright[s][sq] == k)
+        if (PawnCaptureRight[s][sq] == k)
             return true;
         return false;
     }
     if (p == N) {
         var c = 0;
-        var sq2 = Knightmoves[sq][0];
+        var sq2 = KnightMoves[sq][0];
 
         while (sq2 > -1) {
-            if (Knightmoves[sq][c] == k)
+            if (KnightMoves[sq][c] == k)
                 return true;
             c++;
-            sq2 = Knightmoves[sq][c];
+            sq2 = KnightMoves[sq][c];
         }
         return false;
     }
     if (p == B || p == Q) {
         if (NE_DIAG[sq] == NE_DIAG[k]) {
-            if (sq < k && LineCheck3(s, sq, NE, k)) return true;
-            else if (LineCheck3(s, sq, SE, k)) return true;
+            if (sq < k && LineCheck3(sq, NE, k)) return true;
+            else if (LineCheck3(sq, SE, k)) return true;
         }
         if (NW_DIAG[sq] == NW_DIAG[k]) {
-            if (sq < k && LineCheck3(s, sq, NW, k)) return true;
-            else if (LineCheck3(s, sq, SW, k)) return true;
+            if (sq < k && LineCheck3(sq, NW, k)) return true;
+            else if (LineCheck3(sq, SW, k)) return true;
         }
     }
 
     if (p == R || p == Q) {
         if (COL[sq] == COL[k]) {
-            if (sq < k && LineCheck3(s, sq, NORTH, k)) return true;
-            else if (LineCheck3(s, sq, SOUTH, k)) return true;
+            if (sq < k && LineCheck3(sq, NORTH, k)) return true;
+            else if (LineCheck3(sq, SOUTH, k)) return true;
         }
         if (ROW[sq] == ROW[k]) {
-            if (sq < k && LineCheck3(s, sq, EAST, k)) {
+            if (sq < k && LineCheck3(sq, EAST, k)) {
                 return true;
             }
-            else if (LineCheck3(s, sq, WEST, k)) return true;
+            else if (LineCheck3(sq, WEST, k)) return true;
         }
     }
     return false;
 }
 
 // hash tables etc
-const HASHSIZE = 500000;
-const MAXPAWNHASH = 65536;
-const PAWNHASHSIZE = 32768;
+const HASH_SIZE = 500000;
+const HASH_TABLE_SIZE = 1048576;
+const MAX_PAWN_HASH = 65536;
+const PAWN_HASH_SIZE = 32768;
 
 var whitehash = new Create2DArray(6, 64);
 var blackhash = new Create2DArray(6, 64);
@@ -897,14 +904,11 @@ var piecelock = new Create3DArray(2, 6, 64);
 
 var pawnhash = new Create2DArray(2, 64);
 var pawnlock = new Create2DArray(2, 64);
-var hashpawns = new Create2DArray(2, MAXPAWNHASH);
+var hashpawns = new Create2DArray(2, MAX_PAWN_HASH);
 
-var hashpos = new Create2DArray(2, HASHSIZE + 100000);//
 var white_hashtable = [];
 var black_hashtable = [];
-var white_hash_pawns = [];
-var black_hash_pawns = [];
-var hashpawns = [];//
+var hashpawns = [];
 
 function hashtable() {
     var hashlock = 0;
@@ -930,30 +934,30 @@ function hashpawn() {
 }
 
 var clashes = 0, collisions = 0;
-var hash_start, hash_dest;
+var hash_from, hash_to;
 
-function SetPawnHash() {
-    for (x = 0; x < HASHSIZE + 100000; x++) {
+function SetHashTables() {
+    for (x = 0; x < HASH_TABLE_SIZE; x++) {
         white_hashtable.push(new hashp());
         black_hashtable.push(new hashp());
     }
-    for (var x = 0; x < MAXPAWNHASH; x++) {
+    for (var x = 0; x < MAX_PAWN_HASH; x++) {
         hashpawns.push(new hashpawn());
     }
 }
 
-function SetHashTables() {
+function RandomizeHashTables() {
     for (var s = 0; s < 2; s++) {
         for (var x = 0; x < 64; x++) {
-            pawnhash[s][x] = Random(PAWNHASHSIZE);
-            pawnlock[s][x] = Random(PAWNHASHSIZE);
+            pawnhash[s][x] = Random(PAWN_HASH_SIZE);
+            pawnlock[s][x] = Random(PAWN_HASH_SIZE);
         }
     }
     for (var s = 0; s < 2; s++) {
         for (var p = 0; p < 6; p++) {
             for (var x = 0; x < 64; x++) {
-                piecehash[s][p][x] = Random(HASHSIZE);
-                piecelock[s][p][x] = Random(HASHSIZE);
+                piecehash[s][p][x] = Random(HASH_SIZE);
+                piecelock[s][p][x] = Random(HASH_SIZE);
             }
         }
     }
@@ -981,7 +985,6 @@ function AddKey(s, p, x) {
         currentlock ^= piecelock[s][p][x];
     }
     catch (err) {
-        //DisplayPV(ply);
         var a1 = "alert= " + err + " addkey s " + s + " p " + p + " x " + x;
         postMessage(a1 + " ply " + ply + " hply " + hply);
     }
@@ -1011,13 +1014,13 @@ function LookUp(s) {
     if (s == 0) {
         if (white_hashtable[currentkey].hashlock != currentlock)
             return false;
-        hash_start = white_hashtable[currentkey].from;
-        hash_dest = white_hashtable[currentkey].to;
+        hash_from = white_hashtable[currentkey].from;
+        hash_to = white_hashtable[currentkey].to;
     } else {
         if (black_hashtable[currentkey].hashlock != currentlock)
             return false;
-        hash_start = black_hashtable[currentkey].from;
-        hash_dest = black_hashtable[currentkey].to;
+        hash_from = black_hashtable[currentkey].from;
+        hash_to = black_hashtable[currentkey].to;
     }
     return true;
 }
@@ -1066,22 +1069,17 @@ function Eval() {
     } else {
         score += GetHashPawns();
     }
-    if (Kingloc[0] > -1) {
-        if (bit_pieces[1][Q] == 0)
-            score += King_endgame[0][Kingloc[0]];
-        else {
-            if (ROW[Kingloc[0]] < 2 && color[pawnmove[0][Kingloc[0]]] == 0 && board[pawnmove[0][Kingloc[0]]] == P)
-                score += 10;
-        }
+    if (bit_pieces[1][Q] == 0)
+        score += King_endgame[0][Kingloc[0]];
+    else {
+        if (ROW[Kingloc[0]] == 0 && color[PawnMove[0][Kingloc[0]]] == 0 && board[PawnMove[0][Kingloc[0]]] == P)
+            score += 10;
     }
-
-    if (Kingloc[1] > -1) {
-        if (bit_pieces[0][Q] == 0)
-            score -= King_endgame[1][Kingloc[1]];
-        else {
-            if (ROW[Kingloc[1]] > 5 && color[pawnmove[1][Kingloc[1]]] == 1 && board[pawnmove[1][Kingloc[1]]] == P)
-                score -= 10;
-        }
+    if (bit_pieces[0][Q] == 0)
+        score -= King_endgame[1][Kingloc[1]];
+    else {
+        if (ROW[Kingloc[1]] == 7 && color[PawnMove[1][Kingloc[1]]] == 1 && board[PawnMove[1][Kingloc[1]]] == P)
+            score -= 10;
     }
 
     if (side == 0)
@@ -1105,12 +1103,13 @@ function EvalPawns() {
     AddHashPawns(score);
     return score;
 }
-
+var hits = 0;
 function Think() {
-    root_start = 0;
-    root_dest = 0;
+    root_from = 0;
+    root_to = 0;
 
     var score;
+    hits = 0;//
 
     ply = 0;
     nodes = 0;
@@ -1219,8 +1218,8 @@ function Search(alpha, beta, depth) {
             else
                 d = depth - 2;
         }
-        if (d < 2 && count > 0 && Check == 0 && board[to] == 6 &&
-            !(board[from] == P && rank[side][from] == 6)) {
+        if (d < 2 && count > 0 && Check == 0 && board[to] == EMPTY &&
+            !(board[from] == P && rank[side][from] == EMPTY)) {
             if (e == 10000)
                 e = Eval();
             if (board[from] == K && bit_pieces[xside][Q] == 0)
@@ -1242,8 +1241,8 @@ function Search(alpha, beta, depth) {
             bestscore = score;
             bestmove = move_list[i];
             if (ply == 0) {
-                root_start = from;
-                root_dest = to;
+                root_from = from;
+                root_to = to;
                 root_score = score;
             }
         }
@@ -1284,6 +1283,9 @@ function CaptureSearch(alpha, beta) {
     } else if (eval + 900 < alpha)
         return alpha;
 
+    //if(alpha>eval)
+    //Debug(alpha - eval);//
+
     var score = 0, bestmove = 0; best = 0;
 
     GenCaptures();
@@ -1292,6 +1294,9 @@ function CaptureSearch(alpha, beta) {
         Sort(i);
 
         if (eval + piece_value[board[move_list[i].to]] < alpha)
+            continue;
+        if (piece_value[board[move_list[i].to]] <= best)//
+            //hits++;//
             continue;
 
         score = ReCaptureSearch(move_list[i].from, move_list[i].to);
@@ -1404,7 +1409,7 @@ function Sort(from) {
 
 function SetHashMove() {
     for (var x = first_move[ply]; x < first_move[ply + 1]; x++) {
-        if (move_list[x].from == hash_start && move_list[x].to == hash_dest) {
+        if (move_list[x].from == hash_from && move_list[x].to == hash_to) {
             move_list[x].score = HASH_SCORE;
             return;
         }
@@ -1416,12 +1421,12 @@ function DisplayPV(i) {
     for (var x = 0; x < i; x++) {
         if (LookUp(side) == false)
             break;
-        text += LongAlgebraic(board[hash_start], hash_start, hash_dest, board[hash_dest]) + " ";
-        MakeMove(hash_start, hash_dest);
+        text += LongAlgebraic(board[hash_from], hash_from, hash_to, board[hash_to]) + " ";
+        MakeMove(hash_from, hash_to);
     }
     while (ply)
         TakeBack();
-    postMessage("add= PV " + i + "\\" + deep + " " + text);
+    postMessage("add= PV " + i + "\\" + deep + " " + text + " hits " + hits);
     //postMessage("<br>");
 }
 
@@ -1534,7 +1539,7 @@ function MakeMove(from, to) {
 
     // Handle en passant
     if (board[from] == P && board[to] == EMPTY && COL[from] != COL[to]) {
-        RemovePiece(xside, P, pawnmove[xside][to]);
+        RemovePiece(xside, P, PawnMove[xside][to]);
     }
     else if (board[to] != EMPTY) {
         // Capture move
@@ -1618,7 +1623,7 @@ function TakeBack() {
     // Handle en passant undo
     if (board[to] === P && game_list[hply].capture == EMPTY && COL[from] !== COL[to]) {
         UpdatePiece(side, P, to, from);
-        AddPiece(xside, P, pawnmove[xside][to]);
+        AddPiece(xside, P, PawnMove[xside][to]);
         return;
     }
 
@@ -1750,10 +1755,10 @@ function GenEp() {
 
     if (board[ep] == 0 && color[ep] == xside && Math.abs(game_list[hply - 1].from - ep) == 16) {
         if (COL[ep] > 0 && color[ep - 1] == side && board[ep - 1] == P) {
-            AddCapture(ep - 1, pawnmove[side][ep], 10);
+            AddCapture(ep - 1, PawnMove[side][ep], 10);
         }
         if (COL[ep] < 7 && color[ep + 1] == side && board[ep + 1] == P) {
-            AddCapture(ep + 1, pawnmove[side][ep], 10);
+            AddCapture(ep + 1, PawnMove[side][ep], 10);
         }
     }
 }
@@ -1783,32 +1788,32 @@ function GenCastle() {
 }
 
 function GenPawn(sq) {
-    if (board[pawnmove[side][sq]] == EMPTY) {
-        AddMove(sq, pawnmove[side][sq]);
-        if (rank[side][sq] == 1 && board[pawndouble[side][sq]] == EMPTY)
-            AddMove(sq, pawndouble[side][sq]);
+    if (board[PawnMove[side][sq]] == EMPTY) {
+        AddMove(sq, PawnMove[side][sq]);
+        if (rank[side][sq] == 1 && board[PawnDouble[side][sq]] == EMPTY)
+            AddMove(sq, PawnDouble[side][sq]);
     }
-    if (color[pawncaptureleft[side][sq]] == xside)
-        AddCapture(sq, pawncaptureleft[side][sq], PawnCapScore[board[pawncaptureleft[side][sq]]]);
-    if (color[pawncaptureright[side][sq]] == xside)
-        AddCapture(sq, pawncaptureright[side][sq], PawnCapScore[board[pawncaptureright[side][sq]]]);
+    if (color[PawnCaptureLeft[side][sq]] == xside)
+        AddCapture(sq, PawnCaptureLeft[side][sq], PawnCapScore[board[PawnCaptureLeft[side][sq]]]);
+    if (color[PawnCaptureRight[side][sq]] == xside)
+        AddCapture(sq, PawnCaptureRight[side][sq], PawnCapScore[board[PawnCaptureRight[side][sq]]]);
 }
 
 function GenKnight(sq) {
     var c = 0;
-    var sq2 = Knightmoves[sq][c++];
+    var sq2 = KnightMoves[sq][c++];
     while (sq2 > -1) {
         if (color[sq2] == EMPTY) {
             AddMove(sq, sq2);
         } else if (color[sq2] == xside) {
             AddCapture(sq, sq2, KnightCapScore[board[sq2]]);
         }
-        sq2 = Knightmoves[sq][c++];
+        sq2 = KnightMoves[sq][c++];
     }
 }
 
 function GenBishop(sq, dir) {
-    var sq2 = Kmoves[sq][dir];
+    var sq2 = LineMoves[sq][dir];
     while (sq2 > -1) {
         if (color[sq2] != EMPTY) {
             if (color[sq2] == xside) {
@@ -1817,12 +1822,12 @@ function GenBishop(sq, dir) {
             break;
         }
         AddMove(sq, sq2);
-        sq2 = Kmoves[sq2][dir];
+        sq2 = LineMoves[sq2][dir];
     }
 }
 
 function GenRook(sq, dir) {
-    var sq2 = Kmoves[sq][dir];
+    var sq2 = LineMoves[sq][dir];
     while (sq2 > -1) {
         if (color[sq2] != EMPTY) {
             if (color[sq2] == xside) {
@@ -1831,12 +1836,12 @@ function GenRook(sq, dir) {
             break;
         }
         AddMove(sq, sq2);
-        sq2 = Kmoves[sq2][dir];
+        sq2 = LineMoves[sq2][dir];
     }
 }
 
 function GenQueen(sq, dir) {
-    var sq2 = Kmoves[sq][dir];
+    var sq2 = LineMoves[sq][dir];
     while (sq2 > -1) {
         if (color[sq2] != EMPTY) {
             if (color[sq2] == xside) {
@@ -1845,33 +1850,33 @@ function GenQueen(sq, dir) {
             break;
         }
         AddMove(sq, sq2);
-        sq2 = Kmoves[sq2][dir];
+        sq2 = LineMoves[sq2][dir];
     }
 }
 
 function GenKing(sq) {
     var c = 0;
-    var sq2 = Kingmoves[sq][c++];
+    var sq2 = KingMoves[sq][c++];
     while (sq2 > -1) {
         if (color[sq2] == EMPTY) {
             AddMove(sq, sq2);
         } else if (color[sq2] == xside) {
             AddCapture(sq, sq2, KingCapScore[board[sq2]]);
         }
-        sq2 = Kingmoves[sq][c++];
+        sq2 = KingMoves[sq][c++];
     }
 }
 
-function AddMove(x, sq) {
-    move_list[move_count].from = x;
-    move_list[move_count].to = sq;
-    move_list[move_count].score = Hist[x][sq];
+function AddMove(from, to) {
+    move_list[move_count].from = from;
+    move_list[move_count].to = to;
+    move_list[move_count].score = Hist[from][to];
     move_count++;
 }
 
-function AddCapture(x, sq, score) {
-    move_list[move_count].from = x;
-    move_list[move_count].to = sq;
+function AddCapture(from, to, score) {
+    move_list[move_count].from = from;
+    move_list[move_count].to = to;
     move_list[move_count].score = score;
     move_count++;
 }
@@ -1921,25 +1926,25 @@ function GenCaptures() {
 }
 
 function CapPawn(sq) {
-    if (color[pawncaptureleft[side][sq]] == xside)
-        AddCapture(sq, pawncaptureleft[side][sq], PawnCapScore[board[pawncaptureleft[side][sq]]]);
-    if (color[pawncaptureright[side][sq]] == xside)
-        AddCapture(sq, pawncaptureright[side][sq], PawnCapScore[board[pawncaptureright[side][sq]]]);
+    if (color[PawnCaptureLeft[side][sq]] == xside)
+        AddCapture(sq, PawnCaptureLeft[side][sq], PawnCapScore[board[PawnCaptureLeft[side][sq]]]);
+    if (color[PawnCaptureRight[side][sq]] == xside)
+        AddCapture(sq, PawnCaptureRight[side][sq], PawnCapScore[board[PawnCaptureRight[side][sq]]]);
 }
 
 function CapKnight(sq) {
     var c = 0;
-    var sq2 = Knightmoves[sq][c++];
+    var sq2 = KnightMoves[sq][c++];
     while (sq2 > -1) {
         if (color[sq2] == xside) {
             AddCapture(sq, sq2, KnightCapScore[board[sq2]]);
         }
-        sq2 = Knightmoves[sq][c++];
+        sq2 = KnightMoves[sq][c++];
     }
 }
 
 function CapBishop(sq, dir) {
-    var sq2 = Kmoves[sq][dir];
+    var sq2 = LineMoves[sq][dir];
     while (sq2 > -1) {
         if (color[sq2] != EMPTY) {
             if (color[sq2] == xside) {
@@ -1947,12 +1952,12 @@ function CapBishop(sq, dir) {
             }
             break;
         }
-        sq2 = Kmoves[sq2][dir];
+        sq2 = LineMoves[sq2][dir];
     }
 }
 
 function CapRook(sq, dir) {
-    var sq2 = Kmoves[sq][dir];
+    var sq2 = LineMoves[sq][dir];
     while (sq2 > -1) {
         if (color[sq2] != EMPTY) {
             if (color[sq2] == xside) {
@@ -1960,12 +1965,12 @@ function CapRook(sq, dir) {
             }
             break;
         }
-        sq2 = Kmoves[sq2][dir];
+        sq2 = LineMoves[sq2][dir];
     }
 }
 
 function CapQueen(sq, dir) {
-    var sq2 = Kmoves[sq][dir];
+    var sq2 = LineMoves[sq][dir];
     while (sq2 > -1) {
         if (color[sq2] != EMPTY) {
             if (color[sq2] == xside) {
@@ -1973,22 +1978,22 @@ function CapQueen(sq, dir) {
             }
             break;
         }
-        sq2 = Kmoves[sq2][dir];
+        sq2 = LineMoves[sq2][dir];
     }
 }
 
 function CapKing(sq) {
     var c = 0;
-    var sq2 = Kingmoves[sq][c++];
+    var sq2 = KingMoves[sq][c++];
     while (sq2 > -1) {
         if (color[sq2] == xside) {
             AddCapture(sq, sq2, KingCapScore[board[sq2]]);
         }
-        sq2 = Kingmoves[sq][c++];
+        sq2 = KingMoves[sq][c++];
     }
 }
 
-function LoadDiagram(ts) {
+function LoadDiagram(fen) {
     var x, y, n = 0;
 
     for (x = 0; x < 64; x++) {
@@ -2010,8 +2015,8 @@ function LoadDiagram(ts) {
     var i = 0, j;
     var a;
 
-    for (x = 0; x < ts.length; x++) {
-        a = ts.charAt(x);
+    for (x = 0; x < fen.length; x++) {
+        a = fen.charAt(x);
         if (Number(a) >= 0 && Number(a) <= 8) {
             i += Number(a);
         }
@@ -2032,10 +2037,10 @@ function LoadDiagram(ts) {
                 case 'p': AddPiece(1, 0, j); i++; break;
             }
         } else {
-            if (ts.charAt(x + 1) == 'w') {
+            if (fen.charAt(x + 1) == 'w') {
                 side = 0; xside = 1;
             }
-            if (ts.charAt(x + 1) == 'b') {
+            if (fen.charAt(x + 1) == 'b') {
                 side = 1; xside = 0;
             }
             switch (a) {
@@ -2047,10 +2052,9 @@ function LoadDiagram(ts) {
             }
         }
     }
-    return 0;
 }
 
-function SaveDiagram(ts) {
+function SaveDiagram() {
     var n = 0;
     var a = "";
     var piece = "";
@@ -2194,4 +2198,412 @@ function ShowList() {
     }
     s += " num " + (first_move[ply + 1] - first_move[ply]);
     postMessage("alert= " + s);
+}
+
+function Evasion(checker, k) {
+    move_count = first_move[ply];
+    var p = board[checker];
+    if (hply > 0)
+        GenEp();
+
+    if (color[PawnCaptureLeft[1 - s][sq]] == s &&
+        board[PawnCaptureLeft[1 - s][sq]] == P)
+        AddCapture(PawnCaptureLeft[side][sq], sq, PawnCapScore[p]);
+    if (color[PawnCaptureRight[1 - s][sq]] == s &&
+        board[PawnCaptureRight[1 - s][sq]] == P)
+        AddCapture(PawnCaptureRight[side][sq], sq, PawnCapScore[p]);
+
+    var k = 0;
+    var sq2 = KnightMoves[sq][0];
+
+    while (sq2 > -1) {
+        if (color[sq2] == s && board[sq2] == N)
+            AddCapture(sq2, sq, KnightCapScore[p]);
+        k++;
+        sq2 = KnightMoves[sq][k];
+    }
+    GenKing(kingloc[side]);
+
+    if (Math.abs(COL[sq] - COL[Kingloc[s]]) < 2 && Math.abs(ROW[sq] - ROW[Kingloc[s]]) < 2) {
+
+        for (var x = 0; x < 64; x++) {
+            if (color[x] == side) {
+                if (board[x] == B) {
+                    if (NE_DIAG[x] == NE_DIAG[checker]) {
+                        if (x < checker && LineCheck3(x, NE, checker))
+                            AddCapture(x, checker, BishopCapScore[p]);
+                        else if (LineCheck3(x, SE, checker))
+                            AddCapture(x, checker, BishopCapScore[p]);
+                        continue;
+                    }
+                    if (NW_DIAG[x] == NW_DIAG[checker]) {
+                        if (x < checker && LineCheck3(x, NW, checker))
+                            AddCapture(x, checker, BishopCapScore[p]);
+                        else if (LineCheck3(x, SW, checker))
+                            AddCapture(x, checker, BishopCapScore[p]);
+                    }
+                    continue;
+                }
+                if (board[x] == R) {
+                    if (COL[x] == COL[checker]) {
+                        if (x < checker && LineCheck3(x, NORTH, checker))
+                            AddCapture(x, checker, RookCapScore[p]);
+                        else if (LineCheck3(x, SOUTH, checker))
+                            AddCapture(x, checker, RookCapScore[p]);
+                        continue;
+                    }
+                    if (ROW[x] == ROW[checker]) {
+                        if (x < checker && LineCheck3(x, EAST, checker)) {
+                            AddCapture(x, checker, RookCapScore[p]);
+                        }
+                        else if (LineCheck3(x, WEST, checker))
+                            AddCapture(x, checker, RookCapScore[p]);
+                    }
+                    continue;
+                }
+                if (board[x] == Q) {
+                    if (COL[x] == COL[checker]) {
+                        if (x < checker && LineCheck3(x, NORTH, checker))
+                            AddCapture(x, checker, QueenCapScore[p]);
+                        else if (LineCheck3(x, SOUTH, checker))
+                            AddCapture(x, checker, QueenCapScore[p]);
+                        continue;
+                    }
+                    if (ROW[x] == ROW[checker]) {
+                        if (x < checker && LineCheck3(x, EAST, checker)) {
+                            AddCapture(x, checker, QueenCapScore[p]);
+                        }
+                        else if (LineCheck3(x, WEST, checker))
+                            AddCapture(x, checker, QueenCapScore[p]);
+                        continue;
+                    }
+                    if (NE_DIAG[x] == NE_DIAG[checker]) {
+                        if (x < checker && LineCheck3(x, NE, checker))
+                            AddCapture(x, checker, QueenCapScore[p]);
+                        else if (LineCheck3(x, SE, checker))
+                            AddCapture(x, checker, QueenCapScore[p]);
+                        continue;
+                    }
+                    if (NW_DIAG[x] == NW_DIAG[checker]) {
+                        if (x < checker && LineCheck3(x, NW, checker))
+                            AddCapture(x, checker, QueenCapScore[p]);
+                        else if (LineCheck3(x, SW, checker))
+                            AddCapture(x, checker, QueenCapScore[p]);
+                    }
+                }
+            }
+        }
+        first_move[ply + 1] = move_count;
+        return;
+    }
+
+    if (COL[checker] == COL[king]) {
+
+    }
+    if (ROW[checker] == ROW[king]) {
+
+    }
+    if (NW_DIAG[checker] == NW_DIAG[king]) {
+
+    }
+    if (NE_DIAG[checker] == NE_DIAG[king]) {
+
+    }
+
+    for (var x = 0; x < 64; x++) {
+        if (color[x] == side) {
+            switch (board[x]) {
+                case P:
+                    GenPawn(x);
+                    break;
+                case N:
+                    GenKnight(x);
+                    break;
+                case B:
+                    GenBishop(x, NE);
+                    GenBishop(x, SE);
+                    GenBishop(x, SW);
+                    GenBishop(x, NW);
+                    break;
+                case R:
+                    GenRook(x, NORTH);
+                    GenRook(x, EAST);
+                    GenRook(x, SOUTH);
+                    GenRook(x, WEST);
+                    break;
+                case Q:
+                    GenQueen(x, NE);
+                    GenQueen(x, SE);
+                    GenQueen(x, SW);
+                    GenQueen(x, NW);
+                    GenQueen(x, NORTH);
+                    GenQueen(x, EAST);
+                    GenQueen(x, SOUTH);
+                    GenQueen(x, WEST);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    first_move[ply + 1] = move_count;
+}
+
+function ThreatSearch(alpha) {
+    nodes++;
+
+    var eval = Eval();
+
+    if (eval > alpha) {
+        return true;
+    } else if (eval + 900 < alpha)
+        return false;
+
+    var score = 0, bestmove = 0; best = 0;
+
+    var diff = alpha - eval;
+
+    var min = 900;
+
+    if (diff > 520 && diff < 880)
+        min = 500;
+
+    if (diff > 308 && diff < 501)
+        min = 300;
+
+    if (diff < 150)
+        min = 0;
+
+
+    GenThreats(min);
+
+    for (var i = first_move[ply]; i < first_move[ply + 1]; i++) {
+        Sort(i);
+
+        if (eval + piece_value[board[move_list[i].to]] < alpha)
+            continue;
+        if (piece_value[board[move_list[i].to]] <= best)
+            continue;
+
+        score = ReCaptureSearch(move_list[i].from, move_list[i].to);
+
+        if (score > best) {
+
+        }
+    }
+
+    return false;
+}
+
+function ReCaptureThreat(attacker, sq) {
+    var lowest;
+    var taker = 0;
+    var captures = 0;
+    var score = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    score[0] = piece_value[board[sq]];
+    score[1] = piece_value[board[attacker]];
+
+    if (score[1] < score[0])
+        return true;
+
+    var total_score = 0;
+
+    while (taker < 10) {
+        if (!MakeRecapture(attacker, sq))
+            break;
+        captures++;
+        nodes++;
+        taker++;
+
+        lowest = LowestAttacker(side, sq);
+
+        if (lowest > -1) {
+            score[taker + 1] = piece_value[board[lowest]];
+            if (score[taker] > score[taker - 1] + score[taker + 1]) {
+                taker--;
+                break;
+            }
+        } else
+            break;
+        attacker = lowest;
+    }
+
+    while (taker > 1) {
+        if (score[taker - 1] >= score[taker - 2])
+            taker -= 2;
+        else
+            break;
+    }
+
+    for (var x = 0; x < taker; x++) {
+        if (x % 2 == 0)
+            total_score += score[x];
+        else
+            total_score -= score[x];
+    }
+
+    if (ply > deep)
+        deep = ply;
+
+    while (captures) {
+        UnMakeRecapture();
+        captures--;
+    }
+    return total_score;
+}
+
+function GenThreats(min) {
+    for (var x = 0; x < 64; x++) {
+        if (color[x] == side) {
+            switch (board[x]) {
+                case P:
+                    if (ThreatPawn(x, min))
+                        return true;
+                    break;
+                case N:
+                    if (ThreatKnight(x, min))
+                        return true;
+                    break;
+                case B:
+                    if (ThreatBishop(x, min, NE))
+                        return true;
+                    if (ThreatBishop(x, min, SE))
+                        return true;
+                    if (ThreatBishop(x, min, SW))
+                        return true;
+                    if (ThreatBishop(x, min, NW))
+                        return true;
+                    break;
+                case R:
+                    if (ThreatRook(x, min, EAST))
+                        return true;
+                    if (ThreatRook(x, min, SOUTH))
+                        return true;
+                    if (ThreatRook(x, min, WEST))
+                        return true;
+                    if (ThreatRook(x, min, NORTH))
+                        return true;
+                    break;
+                case Q:
+                    if (ThreatQueen(x, min, NE))
+                        return true;
+                    if (ThreatQueen(x, min, SE))
+                        return true;
+                    if (ThreatQueen(x, min, SW))
+                        return true;
+                    if (ThreatQueen(x, min, NW))
+                        return true;
+                    if (ThreatQueen(x, min, EAST))
+                        return true;
+                    if (ThreatQueen(x, min, SOUTH))
+                        return true;
+                    if (ThreatQueen(x, min, WEST))
+                        return true;
+                    if (ThreatQueen(x, min, NORTH))
+                        return true;
+                    break;
+                case K:
+                    if (ThreatKing(x, min))
+                        return true;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+function ThreatPawn(sq, min) {
+    if (color[PawnCaptureLeft[side][sq]] == xside)
+        if (board[PawnCaptureLeft[side][sq]] >= min)
+            return true;
+    if (color[PawnCaptureRight[side][sq]] == xside)
+        if (board[PawnCaptureRight[side][sq]] >= min)
+            return true;
+    return false;
+}
+
+function GenKnight(sq) {
+    var c = 0;
+    var sq2 = KnightMoves[sq][c++];
+    while (sq2 > -1) {
+        if (color[sq2] == EMPTY) {
+            AddMove(sq, sq2);
+        } else if (color[sq2] == xside) {
+            AddCapture(sq, sq2, KnightCapScore[board[sq2]]);
+        }
+        sq2 = KnightMoves[sq][c++];
+    }
+}
+
+function ThreatKnight(sq, min) {
+    var c = 0;
+    var sq2 = KnightMoves[sq][c++];
+    while (sq2 > -1) {
+        if (color[sq2] == xside) {
+            if (board[sq2] >= min)
+                return true;
+        }
+        sq2 = KnightMoves[sq][c++];
+    }
+    return false;
+}
+
+function ThreatBishop(sq, min, dir) {
+    var sq2 = LineMoves[sq][dir];
+    while (sq2 > -1) {
+        if (color[sq2] != EMPTY) {
+            if (color[sq2] == xside) {
+                if (board[sq2] >= min)
+                    return true;
+            }
+            break;
+        }
+        sq2 = LineMoves[sq2][dir];
+    }
+    return false;
+}
+
+function ThreatRook(sq, min, dir) {
+    var sq2 = LineMoves[sq][dir];
+    while (sq2 > -1) {
+        if (color[sq2] != EMPTY) {
+            if (color[sq2] == xside) {
+                if (board[sq2] >= min)
+                    return true;
+            }
+            break;
+        }
+        sq2 = LineMoves[sq2][dir];
+    }
+    return false;
+}
+
+function ThreatQueen(sq, min, dir) {
+    var sq2 = LineMoves[sq][dir];
+    while (sq2 > -1) {
+        if (color[sq2] != EMPTY) {
+            if (color[sq2] == xside) {
+                if (board[sq2] >= min)
+                    return true;
+            }
+            break;
+        }
+        sq2 = LineMoves[sq2][dir];
+    }
+    return false;
+}
+
+function ThreatKing(sq) {
+    var c = 0;
+    var sq2 = KingMoves[sq][c++];
+    while (sq2 > -1) {
+        if (color[sq2] == xside) {
+            if (board[sq2] >= min)
+                return true;
+        }
+        sq2 = KingMoves[sq][c++];
+    }
+    return false;
 }
